@@ -3,6 +3,8 @@ mod source_processing;
 mod interpreter;
 
 fn main() {
-    let mut raw_source = file_handling::get_source_file();
-    let mut lines = source_processing::process_raw_source(raw_source);
+    let mut source = file_handling::get_source_file();
+    let mut tokenized = source_processing::scan(source);
+    let mut parsed = source_processing::parse(tokenized);
+    let mut interprettable = source_processing::sem_analyze(par);
 }
