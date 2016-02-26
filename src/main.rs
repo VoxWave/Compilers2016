@@ -1,3 +1,4 @@
+mod util;
 mod file_handling;
 mod source_processing;
 mod interpreter;
