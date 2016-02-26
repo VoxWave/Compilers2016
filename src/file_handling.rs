@@ -11,7 +11,7 @@ fn get_source_text() -> String {
         Ok(file) => file,
     }
     let mut source_text = String::new();
-    // I should read the file to a string until a ';' character come up and then start a new string
+    // I should read the file to a string until a ';' character comes up and then start a new string
     // and store all the resulting strings in a Vec or some other data structure. I don't know how
     // to do that in rust yet and that's why I just read the whole source file into a string and
     // chop up the string into smaller strings afterwards.

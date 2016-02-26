@@ -3,6 +3,7 @@ use util::Direction;
 enum Token {
 	Bracket(Direction),
 	CurlyBracket(Direction),
+	Identifier(String),
 	Semicolon,
 	Colon
 	Var,

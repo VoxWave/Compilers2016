@@ -1,0 +1,29 @@
+1.
+  a)
+    pros: separating analysis and synthesis makes the compiler more modular
+    by having only one analysis codebase and then having different synthesis parts
+    for different output forms.
+    cons: compilation can be slower. Some options for optimization arent available
+    when analysis and synthesis are separated. usually when source and target are
+    very close to each other then separation might not be so usefull.
+
+  b)
+    some optimisations in machine language might produce erroneous results when
+    when for example paralelization is used. it would be easier in this case to
+    do the front end and back end parts together to avoid these situations.
+
+2.
+
+    1.
+      terminal symbols are symbols for which there are no replacement rules in
+      a formal grammar.
+    2.
+    3.
+
+    4.
+      maximal munch is the principle that when creating some construct, as much of
+      the available input as possible should be consumed. for example in a lexer
+      tokens should be built from the maximum possible number of characters from
+      the input stream to solve the inherent ambiguity of some commonly used regexes
+      such as [a-z]+
+    5.
