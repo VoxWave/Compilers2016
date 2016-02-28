@@ -21,7 +21,7 @@ enum Token {
 }
 
 enum ScanMode {
-	Normal, String,
+	Normal, String, Number,
 }
 
 fn scan(source: String) -> Vec<Token> {
@@ -34,7 +34,12 @@ fn scan(source: String) -> Vec<Token> {
 			ScanMode::Normal => {
 				match c {
 			        ';' => {
-						eval_buffer(&mut buffer_string);
+						if !buffer_string.is_empty() {
+							eval_buffer(&mut buffer_string);
+						}
+					},
+					'0'...'9' => {
+
 					},
 			    }
 			}
@@ -45,6 +50,6 @@ fn scan(source: String) -> Vec<Token> {
     }
 }
 
-fn eval_buffer(buffer_string: &mut String) -> {
+fn eval_buffer(buffer_string: &mut String) -> Token {
 
 }
