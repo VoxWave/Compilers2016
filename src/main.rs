@@ -1,11 +1,14 @@
 mod util;
 mod file_handling;
 mod source_processing;
+mod scanner;
 mod interpreter;
 
+use scanner::Scanner;
+
 fn main() {
-    let mut source = file_handling::get_source_file();
-    let mut tokenized = source_processing::scan(source);
+    let mut scanner = Scanner::new(file_handling::get_source_file());
+    let mut tokenized = scanner.scan();
     let mut parsed = source_processing::parse(tokenized);
     let mut interprettable = source_processing::sem_analyze(par);
 }
