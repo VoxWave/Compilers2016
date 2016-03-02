@@ -8,7 +8,7 @@ enum Token {
 	Number(String),
 	Semicolon,
 	Colon,
-	Operator(Operator)
+	Operator(Operator),
 	KeyWord(KeyWord),
 }
 
@@ -32,22 +32,16 @@ pub struct Scanner {
 }
 
 impl Scanner {
-
 	pub fn scan(&mut self) -> Vec<Token> {
 	    for c in source.chars() {
 			match scan_mode {
-				ScanMode::Normal => {
-					self.normal_scan(c);
-				},
-				ScanMode::String => {
-					self.string_scan(c);
-				},
-				ScanMode::Number => {
-					self.number_scan(c);
-				},
-				ScanMode::PossibleComment => {
-					self.check_for_comment(c);
-				}
+				ScanMode::Normal => self.normal_scan(c),
+				ScanMode::String => self.string_scan(c),
+				ScanMode::Number => self.number_scan(c),
+				ScanMode::PossibleComment => self.check_for_comment(c),
+				ScanMode::LineComment => self.line_comment_handling(c),
+				ScanMode::BlockComment => self.block_comment_handling(c),
+				ScanModes::Other => self.identifier_and_keyword_scan(c),
 			}
 	    }
 	}
@@ -86,7 +80,7 @@ impl Scanner {
 			_ => {
 				buffer_string.push(c);
 				self.scan_mode = ScanMode::Other;
-			}
+			},
 
 		}
 	}
@@ -97,6 +91,66 @@ impl Scanner {
 
 	fn number_scan(&mut self, c: char) {
 
+	}
+
+	fn identifier_and_keyword_scan(&mut self, c: char) {
+		match c {
+			' ', '\n', '\t' => {
+				self.eval_buffer();
+				self.scan_mode = ScanModes::Normal;
+			}
+			'0'...'9' => {
+				self.eval_buffer();
+				buffer_string.push(c);
+				self.scan_mode = ScanMode::Number;
+			},
+			'"' => {
+				self.scan_mode = ScanMode::String;
+			},
+			'{' => {
+				self.eval_buffer();
+				tokens.push(Token::CurlyBracket(Left));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'}' => {
+				self.eval_buffer();
+				tokens.push(Token::CurlyBracket(Right));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'(' => {
+				self.eval_buffer();
+				tokens.push(Token::Bracket(Left));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'(' => {
+				tokens.push(Token::Bracket(Right));
+				self.scan_mode = ScanModes::Normal;
+			},
+			';' => {
+				tokens.push(Token::Semicolon);
+				self.scan_mode = ScanModes::Normal;
+			},
+			':' => {
+				tokens.push(Token::Colon);
+				self.scan_mode = ScanModes::Normal;
+			},
+			'+' => {
+				tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'-' => {
+				tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'*' => {
+				tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanModes::Normal;
+			},
+			'/' => {
+				buffer_string.push(c);
+				self.scan_mode = ScanMode::PossibleComment;
+			},
+		}
 	}
 
 	fn check_for_comment(&mut self, c: char) {
@@ -110,5 +164,4 @@ impl Scanner {
 	fn line_comment_handling(&mut self, c: char) {
 
 	}
-}or
-
+}
