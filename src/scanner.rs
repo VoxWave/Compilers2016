@@ -83,6 +83,10 @@ impl Scanner {
 				buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
+			_ => {
+				buffer_string.push(c);
+				self.scan_mode = ScanMode::Other;
+			}
 
 		}
 	}
@@ -106,5 +110,5 @@ impl Scanner {
 	fn line_comment_handling(&mut self, c: char) {
 
 	}
-}
+}or
 
