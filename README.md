@@ -1,3 +1,3 @@
-# Compilers2017
-Compilers Project 2017: Mini-PL interpreter made in Rust.    
+# Compilers2018
+Compilers Project 2018: Mini-PL interpreter made in Rust.    
 
