@@ -2,7 +2,6 @@ use util::Direction::*;
 
 enum Token {
 	Bracket(Direction),
-	CurlyBracket(Direction),
 	Identifier(String),
 	StringLiteral(String),
 	Number(String),
@@ -13,7 +12,7 @@ enum Token {
 }
 
 enum Operator {
-	Plus, Minus, Multiply, Divide,
+	Plus, Minus, Multiply, Divide, LessThan, Equals, And, Not,
 }
 
 enum KeyWord {
@@ -32,6 +31,15 @@ pub struct Scanner {
 }
 
 impl Scanner {
+	pub fn new(source: String) -> Self {
+		Scanner {
+			source,
+			tokens: Vec::new(),
+			scan_mode: ScanMode::Normal,
+			buffer_string: String::new(),
+		}
+	}
+
 	pub fn scan(&mut self) -> Vec<Token> {
 	    for c in source.chars() {
 			match scan_mode {
@@ -44,6 +52,7 @@ impl Scanner {
 				ScanModes::Other => self.identifier_and_keyword_scan(c),
 			}
 	    }
+		self.tokens
 	}
 
 	pub fn set_new_source(&mut self, source: String) {
@@ -51,12 +60,25 @@ impl Scanner {
 	}
 
 	fn eval_buffer(&mut self) {
-
+		match &*self.buffer_string {
+			"var" => self.tokens.push(Token::KeyWord(KeyWord::Var)),
+			"for" => self.tokens.push(Token::KeyWord(KeyWord::For)),
+			"end" => self.tokens.push(Token::KeyWord(KeyWord::End)),
+			"in" => self.tokens.push(Token::KeyWord(KeyWord::In)),
+			"do" => self.tokens.push(Token::KeyWord(KeyWord::Do)),
+			"read" => self.tokens.push(Token::KeyWord(KeyWord::Read)),
+			"print" => self.tokens.push(Token::KeyWord(KeyWord::Print)),
+			"int" => self.tokens.push(Token::KeyWord(KeyWord::Int)),
+			"string" => self.tokens.push(Token::KeyWord(KeyWord::String)),
+			"bool" => self.tokens.push(Token::KeyWord(KeyWord::Bool)),
+			"assert" => self.tokens.push(Token::KeyWord(KeyWord::Assert)),
+			_ => {},
+		}
 	}
 
 	fn normal_scan(&mut self, c: char) {
 		match c {
-			' ', '\n', '\t' => {}
+			' ', '\n', '\t', '\r' => {}
 			'0'...'9' => {
 				buffer_string.push(c);
 				self.scan_mode = ScanMode::Number;
@@ -64,24 +86,25 @@ impl Scanner {
 			'"' => {
 				self.scan_mode = ScanMode::String;
 			}
-			'{' => tokens.push(Token::CurlyBracket(Left)),
-			'}' => tokens.push(Token::CurlyBracket(Right)),
 			'(' => tokens.push(Token::Bracket(Left)),
 			'(' => tokens.push(Token::Bracket(Right)),
 			';' => tokens.push(Token::Semicolon),
 			':' => tokens.push(Token::Colon),
 			'+' => tokens.push(Token::Operator(Operator::Plus)),
-			'-' => tokens.push(Token::Operator(Operator::Plus)),
-			'*' => tokens.push(Token::Operator(Operator::Plus)),
+			'-' => tokens.push(Token::Operator(Operator::Minus)),
+			'*' => tokens.push(Token::Operator(Operator::Multiply)),
 			'/' => {
 				buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
+			'<' => tokens.push(Token::Operator(Operator::LessThan),
+			'=' => tokens.push(Token::Operator(Operator::Equals)),
+			'&' => tokens.push(Token::Operator(Operator::And)),
+			'!' => tokens.push(Token::Operator(Operator::Not)),
 			_ => {
 				buffer_string.push(c);
 				self.scan_mode = ScanMode::Other;
 			},
-
 		}
 	}
 
@@ -95,7 +118,7 @@ impl Scanner {
 
 	fn identifier_and_keyword_scan(&mut self, c: char) {
 		match c {
-			' ', '\n', '\t' => {
+			w if w.is_whitespace() => {
 				self.eval_buffer();
 				self.scan_mode = ScanModes::Normal;
 			}
@@ -106,16 +129,6 @@ impl Scanner {
 			},
 			'"' => {
 				self.scan_mode = ScanMode::String;
-			},
-			'{' => {
-				self.eval_buffer();
-				tokens.push(Token::CurlyBracket(Left));
-				self.scan_mode = ScanModes::Normal;
-			},
-			'}' => {
-				self.eval_buffer();
-				tokens.push(Token::CurlyBracket(Right));
-				self.scan_mode = ScanModes::Normal;
 			},
 			'(' => {
 				self.eval_buffer();

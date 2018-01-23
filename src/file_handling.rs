@@ -9,7 +9,7 @@ fn get_source_text() -> String {
         Err(why) => panic!("couldn't open {}: {}", display,
                                                    Error::description(&why)),
         Ok(file) => file,
-    }
+    };
     let mut source_text = String::new();
     // I should read the file to a string until a ';' character comes up and then start a new string
     // and store all the resulting strings in a Vec or some other data structure. I don't know how
@@ -17,7 +17,7 @@ fn get_source_text() -> String {
     // chop up the string into smaller strings afterwards.
     match file.read_to_string(&mut source_text) {
         Err(why) => panic!("couldn't read {}: {}", display,
-                                                   Error:description(&why)),
+                                                   Error::description(&why)),
         Ok(_) => {}
     }
     source_text
