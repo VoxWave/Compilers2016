@@ -1,6 +1,6 @@
 use util::Direction::*;
 
-enum Token {
+pub enum Token {
 	Bracket(Direction),
 	Identifier(String),
 	StringLiteral(String),

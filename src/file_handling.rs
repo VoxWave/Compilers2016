@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::File;
 
-fn get_source_text() -> String {
+pub fn get_source_text() -> String {
     let path = get_path();
     let display = path.display();
 

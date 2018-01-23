@@ -1,3 +1,3 @@
-enum Direction {
+pub enum Direction {
 	Left, Right
 }
