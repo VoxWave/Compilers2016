@@ -1,3 +1,4 @@
+use util::Direction;
 use util::Direction::*;
 
 pub enum Token {
@@ -41,15 +42,15 @@ impl Scanner {
 	}
 
 	pub fn scan(&mut self) -> Vec<Token> {
-	    for c in source.chars() {
-			match scan_mode {
+	    for c in self.source.chars() {
+			match self.scan_mode {
 				ScanMode::Normal => self.normal_scan(c),
 				ScanMode::String => self.string_scan(c),
 				ScanMode::Number => self.number_scan(c),
 				ScanMode::PossibleComment => self.check_for_comment(c),
 				ScanMode::LineComment => self.line_comment_handling(c),
 				ScanMode::BlockComment => self.block_comment_handling(c),
-				ScanModes::Other => self.identifier_and_keyword_scan(c),
+				ScanMode::Other => self.identifier_and_keyword_scan(c),
 			}
 	    }
 		self.tokens
@@ -78,31 +79,31 @@ impl Scanner {
 
 	fn normal_scan(&mut self, c: char) {
 		match c {
-			' ', '\n', '\t', '\r' => {}
+			' ' | '\n' | '\t' | '\r' => {}
 			'0'...'9' => {
-				buffer_string.push(c);
+				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::Number;
 			},
 			'"' => {
 				self.scan_mode = ScanMode::String;
-			}
-			'(' => tokens.push(Token::Bracket(Left)),
-			'(' => tokens.push(Token::Bracket(Right)),
-			';' => tokens.push(Token::Semicolon),
-			':' => tokens.push(Token::Colon),
-			'+' => tokens.push(Token::Operator(Operator::Plus)),
-			'-' => tokens.push(Token::Operator(Operator::Minus)),
-			'*' => tokens.push(Token::Operator(Operator::Multiply)),
+			},
+			'(' => self.tokens.push(Token::Bracket(Left)),
+			'(' => self.tokens.push(Token::Bracket(Right)),
+			';' => self.tokens.push(Token::Semicolon),
+			':' => self.tokens.push(Token::Colon),
+			'+' => self.tokens.push(Token::Operator(Operator::Plus)),
+			'-' => self.tokens.push(Token::Operator(Operator::Minus)),
+			'*' => self.tokens.push(Token::Operator(Operator::Multiply)),
 			'/' => {
-				buffer_string.push(c);
+				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
-			'<' => tokens.push(Token::Operator(Operator::LessThan),
-			'=' => tokens.push(Token::Operator(Operator::Equals)),
-			'&' => tokens.push(Token::Operator(Operator::And)),
-			'!' => tokens.push(Token::Operator(Operator::Not)),
+			'<' => self.tokens.push(Token::Operator(Operator::LessThan)),
+			'=' => self.tokens.push(Token::Operator(Operator::Equals)),
+			'&' => self.tokens.push(Token::Operator(Operator::And)),
+			'!' => self.tokens.push(Token::Operator(Operator::Not)),
 			_ => {
-				buffer_string.push(c);
+				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::Other;
 			},
 		}
@@ -120,11 +121,11 @@ impl Scanner {
 		match c {
 			w if w.is_whitespace() => {
 				self.eval_buffer();
-				self.scan_mode = ScanModes::Normal;
+				self.scan_mode = ScanMode::Normal;
 			}
 			'0'...'9' => {
 				self.eval_buffer();
-				buffer_string.push(c);
+				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::Number;
 			},
 			'"' => {
@@ -132,35 +133,35 @@ impl Scanner {
 			},
 			'(' => {
 				self.eval_buffer();
-				tokens.push(Token::Bracket(Left));
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Bracket(Left));
+				self.scan_mode = ScanMode::Normal;
 			},
 			'(' => {
-				tokens.push(Token::Bracket(Right));
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Bracket(Right));
+				self.scan_mode = ScanMode::Normal;
 			},
 			';' => {
-				tokens.push(Token::Semicolon);
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Semicolon);
+				self.scan_mode = ScanMode::Normal;
 			},
 			':' => {
-				tokens.push(Token::Colon);
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Colon);
+				self.scan_mode = ScanMode::Normal;
 			},
 			'+' => {
-				tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanMode::Normal;
 			},
 			'-' => {
-				tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanMode::Normal;
 			},
 			'*' => {
-				tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanModes::Normal;
+				self.tokens.push(Token::Operator(Operator::Plus));
+				self.scan_mode = ScanMode::Normal;
 			},
 			'/' => {
-				buffer_string.push(c);
+				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
 		}

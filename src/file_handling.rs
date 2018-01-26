@@ -1,5 +1,8 @@
 use std::env;
+use std::io::Read;
 use std::fs::File;
+use std::path::PathBuf;
+use std::error::Error;
 
 pub fn get_source_text() -> String {
     let path = get_path();
@@ -23,7 +26,7 @@ pub fn get_source_text() -> String {
     source_text
 }
 
-fn get_path() -> Path {
+fn get_path() -> PathBuf {
     //let f = try!(File::open());
     let mut path = String::new();
 
@@ -36,5 +39,5 @@ fn get_path() -> Path {
     if path.is_empty() {
         panic!("No path to a source file provided.");
     }
-    path
+    PathBuf::from(path)
 }
