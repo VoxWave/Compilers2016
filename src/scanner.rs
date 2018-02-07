@@ -1,6 +1,7 @@
 use util::Direction;
 use util::Direction::*;
 
+/// All the different tokens mini-pl has.
 pub enum Token {
 	Bracket(Direction),
 	Identifier(String),
@@ -12,10 +13,12 @@ pub enum Token {
 	KeyWord(KeyWord),
 }
 
+/// All the different operators mini-pl has.
 enum Operator {
 	Plus, Minus, Multiply, Divide, LessThan, Equals, And, Not,
 }
 
+///All the keywords mini-pl has.
 enum KeyWord {
 	Var, For, End, In, Do, Read, Print, Int, String, Bool, Assert,
 }
@@ -24,24 +27,35 @@ enum ScanMode {
 	Normal, String, Number, PossibleComment, LineComment, BlockComment, Other,
 }
 
+/// Scanner is essentially a finite state automaton that takes in a source code as a string and 
 pub struct Scanner {
+	/// The source code in a string.
 	source: String,
+	/// Tokens that have been parse
 	tokens: Vec<Token>,
+	/// Current state of scanning. It used to choose the approriate function to scan for a token.
 	scan_mode: ScanMode,
-	buffer_string: String
+	/// a String used to store previously scanned characters that are needed in the next token.
+	buffer_string: String,
+	/// a String used to store characters related to escape sequences (in strings).
+	escape_buffer: String,
 }
 
 impl Scanner {
+	/// Creates a new Scanner with source code given as a String parameter.
 	pub fn new(source: String) -> Self {
 		Scanner {
 			source,
 			tokens: Vec::new(),
 			scan_mode: ScanMode::Normal,
 			buffer_string: String::new(),
+			escape_buffer: String::new(),
 		}
 	}
-
+	/// Goes trough the whole source string character by character and produces a vector of tokens.
 	pub fn scan(&mut self) -> Vec<Token> {
+		// Foreach through the source string and choose the approriate handling function for the current character 
+		// according to what state(´ScanMode´) the scanner is currently in.
 	    for c in self.source.chars() {
 			match self.scan_mode {
 				ScanMode::Normal => self.normal_scan(c),
@@ -110,7 +124,7 @@ impl Scanner {
 	}
 
 	fn string_scan(&mut self, c: char) {
-
+		match
 	}
 
 	fn number_scan(&mut self, c: char) {
