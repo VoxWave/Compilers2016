@@ -1,7 +1,23 @@
+//     mini-pl compiler.
+//     Copyright (C) 2018  Victor Bankowski
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use util::Direction;
 use util::Direction::*;
 
 /// All the different tokens mini-pl has.
+#[derive(Clone)]
 pub enum Token {
 	Bracket(Direction),
 	Identifier(String),
@@ -14,11 +30,13 @@ pub enum Token {
 }
 
 /// All the different operators mini-pl has.
+#[derive(Clone)]
 enum Operator {
 	Plus, Minus, Multiply, Divide, LessThan, Equals, And, Not,
 }
 
 ///All the keywords mini-pl has.
+#[derive(Clone)]
 enum KeyWord {
 	Var, For, End, In, Do, Read, Print, Int, String, Bool, Assert,
 }
@@ -29,9 +47,7 @@ enum ScanMode {
 
 /// Scanner is essentially a finite state automaton that takes in a source code as a string and 
 pub struct Scanner {
-	/// The source code in a string.
-	source: String,
-	/// Tokens that have been parse
+	/// Tokens that have been parsed.
 	tokens: Vec<Token>,
 	/// Current state of scanning. It used to choose the approriate function to scan for a token.
 	scan_mode: ScanMode,
@@ -43,9 +59,8 @@ pub struct Scanner {
 
 impl Scanner {
 	/// Creates a new Scanner with source code given as a String parameter.
-	pub fn new(source: String) -> Self {
+	pub fn new() -> Self {
 		Scanner {
-			source,
 			tokens: Vec::new(),
 			scan_mode: ScanMode::Normal,
 			buffer_string: String::new(),
@@ -53,10 +68,10 @@ impl Scanner {
 		}
 	}
 	/// Goes trough the whole source string character by character and produces a vector of tokens.
-	pub fn scan(&mut self) -> Vec<Token> {
+	pub fn scan(&mut self, source: &str) -> Vec<Token> {
 		// Foreach through the source string and choose the approriate handling function for the current character 
 		// according to what state(´ScanMode´) the scanner is currently in.
-	    for c in self.source.chars() {
+	    for c in source.chars() {
 			match self.scan_mode {
 				ScanMode::Normal => self.normal_scan(c),
 				ScanMode::String => self.string_scan(c),
@@ -67,13 +82,8 @@ impl Scanner {
 				ScanMode::Other => self.identifier_and_keyword_scan(c),
 			}
 	    }
-		self.tokens
+		self.tokens.clone()
 	}
-
-	pub fn set_new_source(&mut self, source: String) {
-		self.source = source;
-	}
-
 	fn eval_buffer(&mut self) {
 		match &*self.buffer_string {
 			"var" => self.tokens.push(Token::KeyWord(KeyWord::Var)),
@@ -87,7 +97,7 @@ impl Scanner {
 			"string" => self.tokens.push(Token::KeyWord(KeyWord::String)),
 			"bool" => self.tokens.push(Token::KeyWord(KeyWord::Bool)),
 			"assert" => self.tokens.push(Token::KeyWord(KeyWord::Assert)),
-			_ => {},
+			_ => unreachable!("öö tota miks tänne päästii pitäis varmaa heittää result mut ei jaksa siispä lol panikoi :D"),
 		}
 	}
 
@@ -102,7 +112,7 @@ impl Scanner {
 				self.scan_mode = ScanMode::String;
 			},
 			'(' => self.tokens.push(Token::Bracket(Left)),
-			'(' => self.tokens.push(Token::Bracket(Right)),
+			')' => self.tokens.push(Token::Bracket(Right)),
 			';' => self.tokens.push(Token::Semicolon),
 			':' => self.tokens.push(Token::Colon),
 			'+' => self.tokens.push(Token::Operator(Operator::Plus)),
@@ -124,7 +134,6 @@ impl Scanner {
 	}
 
 	fn string_scan(&mut self, c: char) {
-		match
 	}
 
 	fn number_scan(&mut self, c: char) {
@@ -178,6 +187,7 @@ impl Scanner {
 				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
+			_ => unreachable!(),
 		}
 	}
 
