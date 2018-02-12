@@ -42,7 +42,7 @@ enum KeyWord {
 }
 /// ScanModes can be thought as parts of an finite automaton that handle recognizing different token types.
 enum ScanMode {
-	Normal, String, Number, PossibleComment, LineComment, BlockComment, Other,
+	Normal, String, Number, PossibleComment, LineComment, BlockComment, Other, Escape
 }
 
 /// Scanner is essentially a finite state automaton that takes in a source code as a string and 
@@ -58,7 +58,7 @@ pub struct Scanner {
 }
 
 impl Scanner {
-	/// Creates a new Scanner with source code given as a String parameter.
+	/// Creates a new Scanner.
 	pub fn new() -> Self {
 		Scanner {
 			tokens: Vec::new(),
@@ -80,6 +80,7 @@ impl Scanner {
 				ScanMode::LineComment => self.line_comment_handling(c),
 				ScanMode::BlockComment => self.block_comment_handling(c),
 				ScanMode::Other => self.identifier_and_keyword_scan(c),
+				ScanMode::Escape => self.escape_scan(c),
 			}
 	    }
 		self.tokens.clone()
@@ -134,6 +135,18 @@ impl Scanner {
 	}
 
 	fn string_scan(&mut self, c: char) {
+		match c {
+			'\\' => {
+				self.scan_mode = ScanMode::Escape;
+			}
+			//Add problematic characters here.
+			
+			_ => self.buffer_string.push(c),
+		}
+	}
+
+	fn escape_scan(&mut self, c: char) {
+
 	}
 
 	fn number_scan(&mut self, c: char) {
