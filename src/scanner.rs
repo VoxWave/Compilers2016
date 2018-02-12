@@ -139,14 +139,55 @@ impl Scanner {
 			'\\' => {
 				self.scan_mode = ScanMode::Escape;
 			}
-			//Add problematic characters here.
+			'"' => {
+				self.tokens.push(Token::StringLiteral(self.buffer_string.clone()));
+				self.buffer_string.clear();
+				self.scan_mode = ScanMode::Normal;
+			}
+			//It is possible that I need to add problematic characters here.
 			
 			_ => self.buffer_string.push(c),
 		}
 	}
 
 	fn escape_scan(&mut self, c: char) {
+		if self.escape_buffer.is_empty() {
+			//match the escape to an actual escape character and store it in a variable.
+			let escaped_char = match c {
+				'a' => '\x07',
+				'b' => '\x08',
+				'f' => '\x0C',
+				'n' => '\n',
+				'r' => '\r',
+				't' => '\t',
+				'v' => '\x0B',
+				'\\' | '\'' | '"' | '?' => c,
+				'0' ... '8' | 'x' | 'U' | 'u' => {
+					self.escape_buffer.push(c);
+					//return because in the case these characters we want to gather more characters in order to parse the escape correctly.
+					return;
+				},
+				_ => panic!("Escape \\{} not supported", c),
+			};
+			//the escape has been handled. push the character into the string we're forming and return back to normal string scanning.
+			self.buffer_string.push(escaped_char);
+			self.escape_buffer.clear();
+			self.scan_mode = ScanMode::String;
+		} else {
+			//we have found an escape sequence that's larger than one character long.
+			match self.escape_buffer.chars().next().unwrap() {
+				'x' => {
 
+				},
+				'U' => {
+
+				},
+				'u' => {
+
+				},
+				_ => panic!(),
+			}
+		}
 	}
 
 	fn number_scan(&mut self, c: char) {
