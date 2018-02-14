@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 use util::Direction;
 use util::Direction::*;
 
@@ -179,10 +180,26 @@ impl Scanner {
 				'x' => {
 					match c {
 						'0' ... '9' | 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F' => {
+							if self.escape_buffer.len() > 2 {
+								panic!("hex escape sequences longer than a byte(two digits) are not supported.");
+							} 
 							self.escape_buffer.push(c);
 						},
-						
-						_ => panic!("{} is not a valid charater in a hexadecimal escape.");
+						_ => {
+							if self.escape_buffer.len() < 2 {
+								panic!("Atleast one hexadecimal digit is needed after \\x");
+							}
+							let chara = u8::from_str_radix(&self.escape_buffer[1..], 16).expect("error occured when parsing the hex escape into a char");
+							self.buffer_string.push(chara as char);
+							self.escape_buffer.clear();
+							if c == '"' {
+								self.tokens.push(Token::StringLiteral(self.buffer_string.clone()));
+								self.buffer_string.clear();
+								self.scan_mode = ScanMode::Normal;
+							} else {
+								self.scan_mode = ScanMode::String;
+							}
+						}
 					}
 				},
 				'U' => {
