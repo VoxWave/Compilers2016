@@ -177,7 +177,13 @@ impl Scanner {
 			//we have found an escape sequence that's larger than one character long.
 			match self.escape_buffer.chars().next().unwrap() {
 				'x' => {
-
+					match c {
+						'0' ... '9' | 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F' => {
+							self.escape_buffer.push(c);
+						},
+						
+						_ => panic!("{} is not a valid charater in a hexadecimal escape.");
+					}
 				},
 				'U' => {
 
