@@ -86,22 +86,6 @@ impl Scanner {
 	    }
 		self.tokens.clone()
 	}
-	fn eval_buffer(&mut self) {
-		match &*self.buffer_string {
-			"var" => self.tokens.push(Token::KeyWord(KeyWord::Var)),
-			"for" => self.tokens.push(Token::KeyWord(KeyWord::For)),
-			"end" => self.tokens.push(Token::KeyWord(KeyWord::End)),
-			"in" => self.tokens.push(Token::KeyWord(KeyWord::In)),
-			"do" => self.tokens.push(Token::KeyWord(KeyWord::Do)),
-			"read" => self.tokens.push(Token::KeyWord(KeyWord::Read)),
-			"print" => self.tokens.push(Token::KeyWord(KeyWord::Print)),
-			"int" => self.tokens.push(Token::KeyWord(KeyWord::Int)),
-			"string" => self.tokens.push(Token::KeyWord(KeyWord::String)),
-			"bool" => self.tokens.push(Token::KeyWord(KeyWord::Bool)),
-			"assert" => self.tokens.push(Token::KeyWord(KeyWord::Assert)),
-			_ => unreachable!("öö tota miks tänne päästii pitäis varmaa heittää result mut ei jaksa siispä lol panikoi :D"),
-		}
-	}
 
 	fn normal_scan(&mut self, c: char) {
 		match c {
@@ -215,6 +199,23 @@ impl Scanner {
 
 	fn number_scan(&mut self, c: char) {
 
+	}
+	fn eval_buffer(&mut self) {
+		let token = match &*self.buffer_string {
+			"var" => Token::KeyWord(KeyWord::Var),
+			"end" => Token::KeyWord(KeyWord::End),
+			"for" => Token::KeyWord(KeyWord::For),
+			"in" => Token::KeyWord(KeyWord::In),
+			"do" => Token::KeyWord(KeyWord::Do),
+			"read" => Token::KeyWord(KeyWord::Read),
+			"print" => Token::KeyWord(KeyWord::Print),
+			"int" => Token::KeyWord(KeyWord::Int),
+			"string" => Token::KeyWord(KeyWord::String),
+			"bool" => Token::KeyWord(KeyWord::Bool),
+			"assert" => Token::KeyWord(KeyWord::Assert),
+			_ => Token::Identifier(self.buffer_string.clone()),
+		};
+		self.tokens.push(token);
 	}
 
 	fn identifier_and_keyword_scan(&mut self, c: char) {
