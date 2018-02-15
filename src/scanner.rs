@@ -237,7 +237,7 @@ impl Scanner {
 				self.tokens.push(Token::Bracket(Left));
 				self.scan_mode = ScanMode::Normal;
 			},
-			'(' => {
+			')' => {
 				self.tokens.push(Token::Bracket(Right));
 				self.scan_mode = ScanMode::Normal;
 			},
