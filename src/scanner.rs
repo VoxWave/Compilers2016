@@ -26,8 +26,10 @@ pub enum Token {
 	Number(String),
 	Semicolon,
 	Colon,
+	Assignment,
 	Operator(Operator),
 	KeyWord(KeyWord),
+	Range
 }
 
 /// All the different operators mini-pl has.
@@ -218,54 +220,59 @@ impl Scanner {
 		self.tokens.push(token);
 	}
 
-	fn identifier_and_keyword_scan(&mut self, c: char) {
+	fn identifier_and_keyword_scan(&mut self, c: char) {//niiku se olis koodia.
 		match c {
 			w if w.is_whitespace() => {
 				self.eval_buffer();
 				self.scan_mode = ScanMode::Normal;
-			}
-			'0'...'9' => {
-				self.eval_buffer();
-				self.buffer_string.push(c);
-				self.scan_mode = ScanMode::Number;
+			},
+			an if an.is_alphanumeric() => {
+				self.buffer_string.push(an);
 			},
 			'"' => {
+				self.eval_buffer();
 				self.scan_mode = ScanMode::String;
 			},
-			'(' => {
+			'(' | ')' | ';' | ':' | '+' | '-' | '*' | '/' | '<' | '&' | '!' => {
 				self.eval_buffer();
-				self.tokens.push(Token::Bracket(Left));
-				self.scan_mode = ScanMode::Normal;
+				match c {
+
+				}
 			},
-			')' => {
-				self.tokens.push(Token::Bracket(Right));
-				self.scan_mode = ScanMode::Normal;
-			},
-			';' => {
-				self.tokens.push(Token::Semicolon);
-				self.scan_mode = ScanMode::Normal;
-			},
-			':' => {
-				self.tokens.push(Token::Colon);
-				self.scan_mode = ScanMode::Normal;
-			},
-			'+' => {
-				self.tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanMode::Normal;
-			},
-			'-' => {
-				self.tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanMode::Normal;
-			},
-			'*' => {
-				self.tokens.push(Token::Operator(Operator::Plus));
-				self.scan_mode = ScanMode::Normal;
-			},
-			'/' => {
-				self.buffer_string.push(c);
-				self.scan_mode = ScanMode::PossibleComment;
-			},
-			_ => unreachable!(),
+			// '(' => {
+			// 	self.eval_buffer();
+			// 	self.tokens.push(Token::Bracket(Left));
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// ')' => {
+			// 	self.tokens.push(Token::Bracket(Right));
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// ';' => {
+			// 	self.tokens.push(Token::Semicolon);
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// ':' => {
+			// 	self.tokens.push(Token::Colon);
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// '+' => {
+			// 	self.tokens.push(Token::Operator(Operator::Plus));
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// '-' => {
+			// 	self.tokens.push(Token::Operator(Operator::Plus));
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// '*' => {
+			// 	self.tokens.push(Token::Operator(Operator::Plus));
+			// 	self.scan_mode = ScanMode::Normal;
+			// },
+			// '/' => {
+			// 	self.buffer_string.push(c);
+			// 	self.scan_mode = ScanMode::PossibleComment;
+			// },
+			_ => panic!("unexpected character {} was read during identifier/keyword parsing", c)h,
 		}
 	}
 
