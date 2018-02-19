@@ -107,7 +107,6 @@ impl Scanner {
 			'-' => self.tokens.push(Token::Operator(Operator::Minus)),
 			'*' => self.tokens.push(Token::Operator(Operator::Multiply)),
 			'/' => {
-				self.buffer_string.push(c);
 				self.scan_mode = ScanMode::PossibleComment;
 			},
 			'<' => self.tokens.push(Token::Operator(Operator::LessThan)),
@@ -233,46 +232,28 @@ impl Scanner {
 				self.eval_buffer();
 				self.scan_mode = ScanMode::String;
 			},
-			'(' | ')' | ';' | ':' | '+' | '-' | '*' | '/' | '<' | '&' | '!' => {
+			'/' => {
 				self.eval_buffer();
-				match c {
-
-				}
+				self.scan_mode = ScanMode::PossibleComment;
+			}
+			'(' | ')' | ';' | ':' | '+' | '-' | '*' | '<' | '&' | '!' => {
+				self.eval_buffer();
+				self.tokens.push( match c {
+					'(' => Token::Bracket(Left),
+					')' => Token::Bracket(Right),
+					';' => Token::Semicolon,
+					':' => Token::Colon,
+					'+' => Token::Operator(Operator::Plus),
+					'-' => Token::Operator(Operator::Minus),
+					'*' => Token::Operator(Operator::Multiply),
+					'<' => Token::Operator(Operator::LessThan),
+					'&' => Token::Operator(Operator::And),
+					'!' => Token::Operator(Operator::Not),
+					_ => unreachable!(),
+				});
+				self.scan_mode = ScanMode::Normal;
 			},
-			// '(' => {
-			// 	self.eval_buffer();
-			// 	self.tokens.push(Token::Bracket(Left));
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// ')' => {
-			// 	self.tokens.push(Token::Bracket(Right));
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// ';' => {
-			// 	self.tokens.push(Token::Semicolon);
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// ':' => {
-			// 	self.tokens.push(Token::Colon);
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// '+' => {
-			// 	self.tokens.push(Token::Operator(Operator::Plus));
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// '-' => {
-			// 	self.tokens.push(Token::Operator(Operator::Plus));
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// '*' => {
-			// 	self.tokens.push(Token::Operator(Operator::Plus));
-			// 	self.scan_mode = ScanMode::Normal;
-			// },
-			// '/' => {
-			// 	self.buffer_string.push(c);
-			// 	self.scan_mode = ScanMode::PossibleComment;
-			// },
-			_ => panic!("unexpected character {} was read during identifier/keyword parsing", c)h,
+			_ => panic!("unexpected character {} was read during identifier/keyword parsing", c),
 		}
 	}
 
