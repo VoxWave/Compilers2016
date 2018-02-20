@@ -261,7 +261,6 @@ impl Scanner {
     }
 
     fn identifier_and_keyword_scan(&mut self, c: char) {
-        //niiku se olis koodia.
         match c {
             w if w.is_whitespace() => {
                 self.eval_buffer();
