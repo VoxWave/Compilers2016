@@ -1,7 +1,3 @@
 use scanner::Token;
 
-pub fn parse(tokens: Vec<Token>) {
-
-}
-
-
+pub fn parse(tokens: Vec<Token>) {}

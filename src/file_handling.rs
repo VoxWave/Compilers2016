@@ -25,8 +25,7 @@ pub fn get_source_text() -> String {
     let display = path.display();
 
     let mut file = match File::open(&path) {
-        Err(why) => panic!("couldn't open {}: {}", display,
-                                                   Error::description(&why)),
+        Err(why) => panic!("couldn't open {}: {}", display, Error::description(&why)),
         Ok(file) => file,
     };
     let mut source_text = String::new();
@@ -35,8 +34,7 @@ pub fn get_source_text() -> String {
     // to do that in rust yet and that's why I just read the whole source file into a string and
     // chop up the string into smaller strings afterwards.
     match file.read_to_string(&mut source_text) {
-        Err(why) => panic!("couldn't read {}: {}", display,
-                                                   Error::description(&why)),
+        Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
         Ok(_) => {}
     }
     source_text
