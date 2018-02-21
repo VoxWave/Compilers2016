@@ -25,7 +25,7 @@ pub enum Token {
     Bracket(Direction),
     Identifier(String),
     StringLiteral(String),
-    Number(String),
+    Number(BigInt),
     Semicolon,
     Colon,
     Assignment,
@@ -241,7 +241,9 @@ impl Scanner {
         }
     }
 
-    fn number_scan(&mut self, c: char) {}
+    fn number_scan(&mut self, c: char) {
+        
+    }
     fn eval_buffer(&mut self) {
         let token = match &*self.buffer_string {
             "var" => Token::KeyWord(KeyWord::Var),
