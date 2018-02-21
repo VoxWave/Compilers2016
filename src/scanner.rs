@@ -16,6 +16,8 @@
 
 use std::char::from_u32;
 
+use num-bigint::BigInt
+
 use util::Direction;
 use util::Direction::*;
 
