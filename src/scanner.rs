@@ -70,6 +70,7 @@ enum ScanMode {
     StringLiteral,
     Number,
     PossibleComment,
+    PossibleAssignment,
     LineComment,
     BlockComment,
     Other,
@@ -108,6 +109,7 @@ impl Scanner {
                 Normal => self.normal_scan(c),
                 StringLiteral => self.string_scan(c),
                 Number => self.number_scan(c),
+                PossibleAssignment => self.check_for_assignment(c),
                 PossibleComment => self.check_for_comment(c),
                 LineComment => self.line_comment_handling(c),
                 BlockComment => self.block_comment_handling(c),
@@ -123,7 +125,6 @@ impl Scanner {
             '(' => Token::Bracket(Left),
             ')' => Token::Bracket(Right),
             ';' => Token::Semicolon,
-            ':' => Token::Colon,
             '+' => Token::Operator(Operator::Plus),
             '-' => Token::Operator(Operator::Minus),
             '*' => Token::Operator(Operator::Multiply),
@@ -131,7 +132,10 @@ impl Scanner {
             '=' => Token::Operator(Operator::Equals),
             '&' => Token::Operator(Operator::And),
             '!' => Token::Operator(Operator::Not),
-
+            ':' => {
+                self.scan_mode = ScanMode::PossibleAssignment;
+                return;
+            },
             '"' => {
                 self.scan_mode = ScanMode::StringLiteral;
                 return;
@@ -192,7 +196,7 @@ impl Scanner {
             //the escape has been handled. push the character into the string we're forming and return back to normal string scanning.
             self.buffer_string.push(escaped_char);
             self.escape_buffer.clear();
-            self.scan_mode = ScanMode::String;
+            self.scan_mode = ScanMode::StringLiteral;
         } else {
             //we have found an escape sequence that's larger than one character long.
             match self.escape_buffer.chars().next().unwrap() {
@@ -217,7 +221,7 @@ impl Scanner {
                             self.buffer_string.clear();
                             self.scan_mode = ScanMode::Normal;
                         } else {
-                            self.scan_mode = ScanMode::String;
+                            self.scan_mode = ScanMode::StringLiteral;
                         }
                     }
                 },
@@ -249,7 +253,24 @@ impl Scanner {
         }
     }
 
-    fn number_scan(&mut self, c: char) {}
+    fn number_scan(&mut self, c: char) {
+        match c {
+            '0' ... '9' => self.buffer_string.push(c),
+            _ => {
+                Token::Number(self.buffer_string.parse().expect("Failed to parse number"));
+                self.normal_scan(c);
+            },
+        }
+    }
+
+    fn check_for_assignment(&mut self, c: char) {
+        self.tokens.push( match c {
+            '=' => Token::Assignment,
+            _ => Token::Colon,
+        });
+        self.normal_scan(c);
+    }
+
     fn eval_buffer(&mut self) {
         let token = match &*self.buffer_string {
             "var" => Token::KeyWord(KeyWord::Var),
@@ -279,7 +300,7 @@ impl Scanner {
             }
             '"' => {
                 self.eval_buffer();
-                self.scan_mode = ScanMode::String;
+                self.scan_mode = ScanMode::StringLiteral;
             }
             '/' => {
                 self.eval_buffer();
