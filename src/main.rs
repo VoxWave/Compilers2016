@@ -1,4 +1,4 @@
-extern crate num
+extern crate num_bigint;
 
 mod util;
 mod file_handling;

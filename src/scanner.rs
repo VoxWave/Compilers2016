@@ -16,7 +16,7 @@
 
 use std::char::from_u32;
 
-use num-bigint::BigInt
+use num_bigint::BigInt;
 
 use util::Direction;
 use util::Direction::*;
@@ -67,7 +67,7 @@ enum KeyWord {
 /// ScanModes can be thought as parts of an finite automaton that handle recognizing different token types.
 enum ScanMode {
     Normal,
-    String,
+    StringLiteral,
     Number,
     PossibleComment,
     LineComment,
@@ -100,52 +100,58 @@ impl Scanner {
     }
     /// Goes trough the whole source string character by character and produces a vector of tokens.
     pub fn scan(&mut self, source: &str) -> Vec<Token> {
+        use self::ScanMode::*;
         // Foreach through the source string and choose the approriate handling function for the current character
         // according to what state(´ScanMode´) the scanner is currently in.
         for c in source.chars() {
             match self.scan_mode {
-                ScanMode::Normal => self.normal_scan(c),
-                ScanMode::String => self.string_scan(c),
-                ScanMode::Number => self.number_scan(c),
-                ScanMode::PossibleComment => self.check_for_comment(c),
-                ScanMode::LineComment => self.line_comment_handling(c),
-                ScanMode::BlockComment => self.block_comment_handling(c),
-                ScanMode::Other => self.identifier_and_keyword_scan(c),
-                ScanMode::Escape => self.escape_scan(c),
+                Normal => self.normal_scan(c),
+                StringLiteral => self.string_scan(c),
+                Number => self.number_scan(c),
+                PossibleComment => self.check_for_comment(c),
+                LineComment => self.line_comment_handling(c),
+                BlockComment => self.block_comment_handling(c),
+                Other => self.identifier_and_keyword_scan(c),
+                Escape => self.escape_scan(c),
             }
         }
         self.tokens.clone()
     }
 
     fn normal_scan(&mut self, c: char) {
-        match c {
-            ' ' | '\n' | '\t' | '\r' => {}
+        self.tokens.push(match c {
+            '(' => Token::Bracket(Left),
+            ')' => Token::Bracket(Right),
+            ';' => Token::Semicolon,
+            ':' => Token::Colon,
+            '+' => Token::Operator(Operator::Plus),
+            '-' => Token::Operator(Operator::Minus),
+            '*' => Token::Operator(Operator::Multiply),
+            '<' => Token::Operator(Operator::LessThan),
+            '=' => Token::Operator(Operator::Equals),
+            '&' => Token::Operator(Operator::And),
+            '!' => Token::Operator(Operator::Not),
+
+            '"' => {
+                self.scan_mode = ScanMode::StringLiteral;
+                return;
+            }
+            '/' => {
+                self.scan_mode = ScanMode::PossibleComment;
+                return;
+            }
             '0'...'9' => {
                 self.buffer_string.push(c);
                 self.scan_mode = ScanMode::Number;
+                return;
             }
-            '"' => {
-                self.scan_mode = ScanMode::String;
-            }
-            '(' => self.tokens.push(Token::Bracket(Left)),
-            ')' => self.tokens.push(Token::Bracket(Right)),
-            ';' => self.tokens.push(Token::Semicolon),
-            ':' => self.tokens.push(Token::Colon),
-            '+' => self.tokens.push(Token::Operator(Operator::Plus)),
-            '-' => self.tokens.push(Token::Operator(Operator::Minus)),
-            '*' => self.tokens.push(Token::Operator(Operator::Multiply)),
-            '/' => {
-                self.scan_mode = ScanMode::PossibleComment;
-            }
-            '<' => self.tokens.push(Token::Operator(Operator::LessThan)),
-            '=' => self.tokens.push(Token::Operator(Operator::Equals)),
-            '&' => self.tokens.push(Token::Operator(Operator::And)),
-            '!' => self.tokens.push(Token::Operator(Operator::Not)),
+            ' ' | '\n' | '\t' | '\r' => return,
             _ => {
                 self.buffer_string.push(c);
                 self.scan_mode = ScanMode::Other;
+                return;
             }
-        }
+        });
     }
 
     fn string_scan(&mut self, c: char) {
@@ -243,9 +249,7 @@ impl Scanner {
         }
     }
 
-    fn number_scan(&mut self, c: char) {
-        
-    }
+    fn number_scan(&mut self, c: char) {}
     fn eval_buffer(&mut self) {
         let token = match &*self.buffer_string {
             "var" => Token::KeyWord(KeyWord::Var),
