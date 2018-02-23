@@ -83,9 +83,11 @@ pub struct Scanner {
     /// Current state of scanning. It used to choose the approriate function to scan for a token.
     scan_mode: ScanMode,
     /// a String used to store previously scanned characters that are needed in the next token.
-    buffer_string: String,
+    buffer: String,
     /// a String used to store characters related to escape sequences (in strings).
     escape_buffer: String,
+
+    block_comment_counter: usize,
 }
 
 impl Scanner {
@@ -94,8 +96,9 @@ impl Scanner {
         Scanner {
             tokens: Vec::new(),
             scan_mode: ScanMode::Normal,
-            buffer_string: String::new(),
+            buffer: String::new(),
             escape_buffer: String::new(),
+            block_comment_counter: 0,
         }
     }
     /// Goes trough the whole source string character by character and produces a vector of tokens.
@@ -120,6 +123,7 @@ impl Scanner {
 
     fn normal_scan(&mut self, c: char) {
         self.tokens.push(match c {
+            // With these characters we return the corresponding Token from the match to be pushed into the token stream.
             '(' => Token::Bracket(Left),
             ')' => Token::Bracket(Right),
             ';' => Token::Semicolon,
@@ -132,6 +136,9 @@ impl Scanner {
             '&' => Token::Operator(Operator::And),
             '!' => Token::Operator(Operator::Not),
 
+            // In the case of these characters, we don't want to insert a token into our token stream.
+            // Instead we choose the approriate scanning mode, possibly push the current character into our buffer
+            // for later use and then do an early return from the function in order to proceed to the next character.
             '"' => {
                 self.scan_mode = ScanMode::StringLiteral;
                 return;
@@ -141,13 +148,13 @@ impl Scanner {
                 return;
             }
             '0'...'9' => {
-                self.buffer_string.push(c);
+                self.buffer.push(c);
                 self.scan_mode = ScanMode::Number;
                 return;
             }
             ' ' | '\n' | '\t' | '\r' => return,
             _ => {
-                self.buffer_string.push(c);
+                self.buffer.push(c);
                 self.scan_mode = ScanMode::Other;
                 return;
             }
@@ -156,23 +163,30 @@ impl Scanner {
 
     fn string_scan(&mut self, c: char) {
         match c {
+            // Escapes need to be handled in their own mode since they are transformed into
+            // their corresponding character and then inserted into the string we're reading.
             '\\' => {
                 self.scan_mode = ScanMode::Escape;
             }
+
+            // The string literal has ended. We create a token out of the string we've built
+            // into our buffer and then return to normal scanning mode.
             '"' => {
-                self.tokens
-                    .push(Token::StringLiteral(self.buffer_string.clone()));
-                self.buffer_string.clear();
+                self.tokens.push(Token::StringLiteral(self.buffer.clone()));
+                self.buffer.clear();
                 self.scan_mode = ScanMode::Normal;
             }
-            //TODO: It is possible that I need to add problematic characters here.
-            _ => self.buffer_string.push(c),
+            //TODO: It is possible that I need to add problematic characters here. 
+            //      For example, currently multiline string literals are allowed.
+
+            //The character does not have a special meaning and is just added to the string we're building.
+            _ => self.buffer.push(c),
         }
     }
 
     fn escape_scan(&mut self, c: char) {
         if self.escape_buffer.is_empty() {
-            //match the escape to an actual escape character and store it in a variable.
+            //match the escape to the actual character and store it in a variable.
             let escaped_char = match c {
                 'a' => '\x07',
                 'b' => '\x08',
@@ -190,14 +204,16 @@ impl Scanner {
                 _ => panic!("Escape \\{} not supported", c),
             };
             //the escape has been handled. push the character into the string we're forming and return back to normal string scanning.
-            self.buffer_string.push(escaped_char);
+            self.buffer.push(escaped_char);
             self.escape_buffer.clear();
-            self.scan_mode = ScanMode::String;
+            self.scan_mode = ScanMode::StringLiteral;
         } else {
             //we have found an escape sequence that's larger than one character long.
             match self.escape_buffer.chars().next().unwrap() {
+                //hexadecimal escape handling
                 'x' => match c {
                     '0'...'9' | 'a'...'f' | 'A'...'F' => {
+                        //
                         if self.escape_buffer.len() > 2 {
                             panic!("hex escape sequences longer than a byte(two digits) are not supported.");
                         }
@@ -209,27 +225,32 @@ impl Scanner {
                         }
                         let chr = u8::from_str_radix(&self.escape_buffer[1..], 16)
                             .expect("error occured when parsing the hex escape into a char");
-                        self.buffer_string.push(chr as char);
+                        self.buffer.push(chr as char);
                         self.escape_buffer.clear();
                         if c == '"' {
-                            self.tokens
-                                .push(Token::StringLiteral(self.buffer_string.clone()));
-                            self.buffer_string.clear();
+                            self.tokens.push(Token::StringLiteral(self.buffer.clone()));
+                            self.buffer.clear();
                             self.scan_mode = ScanMode::Normal;
                         } else {
-                            self.scan_mode = ScanMode::String;
+                            self.scan_mode = ScanMode::StringLiteral;
                         }
                     }
                 },
-                'U' | 'u' => {
+                // Unicode escapes.
+                // \U is a 4 byte unicode escape sequence and is represented as an 8 digit hexadecimal number.
+                // \u is a 2 byte unicode escape sequence and is represented as an 4 digit hexadecimal number.
+                u @ 'U' | u @ 'u' => {
                     match c {
                         '0'...'9' | 'a'...'f' | 'A'...'F' => self.escape_buffer.push(c),
-                        _ => panic!(
-                            "{} is not a valid hex digit. \\U requires eight hex digits after it.",
-                            c
-                        ),
+                        _ => {
+                            if u == 'U' {
+                                panic!("{} is not a valid hex digit. \\U requires eight hex digits after it.",c);
+                            } else {
+                                panic!("{} is not a valid hex digit. \\u requires four hex digits after it.", c);
+                            }
+                        }
                     }
-                    let max_buffer_len = if c == 'U' { 8 } else { 4 } + 1;
+                    let max_buffer_len = if u == 'U' { 8 } else { 4 } + 1;
                     if self.escape_buffer.len() == max_buffer_len {
                         let error_string = format!(
                             "error occured when parsing unicode escape sequence {}",
@@ -240,7 +261,7 @@ impl Scanner {
                         let chr = from_u32(
                             u32::from_str_radix(&self.escape_buffer[1..], 16).expect(&error_string),
                         ).expect(&unicode_error);
-                        self.buffer_string.push(chr as char)
+                        self.buffer.push(chr as char)
                     }
                 }
 
@@ -249,9 +270,25 @@ impl Scanner {
         }
     }
 
-    fn number_scan(&mut self, c: char) {}
+    fn number_scan(&mut self, c: char) {
+        match c {
+            '0'...'9' => self.buffer.push(c),
+            _ => {
+                self.tokens.push(
+                    self.buffer
+                        .parse()
+                        .map(Token::Number)
+                        .unwrap_or_else(|e| panic!("Number parsing failed: {}", e)),
+                );
+                self.buffer.clear();
+                self.scan_mode = ScanMode::Normal;
+                self.normal_scan(c);
+            }
+        }
+    }
+
     fn eval_buffer(&mut self) {
-        let token = match &*self.buffer_string {
+        self.tokens.push(match &*self.buffer {
             "var" => Token::KeyWord(KeyWord::Var),
             "end" => Token::KeyWord(KeyWord::End),
             "for" => Token::KeyWord(KeyWord::For),
@@ -263,55 +300,59 @@ impl Scanner {
             "string" => Token::KeyWord(KeyWord::String),
             "bool" => Token::KeyWord(KeyWord::Bool),
             "assert" => Token::KeyWord(KeyWord::Assert),
-            _ => Token::Identifier(self.buffer_string.clone()),
-        };
-        self.tokens.push(token);
+            _ => Token::Identifier(self.buffer.clone()),
+        });
     }
 
     fn identifier_and_keyword_scan(&mut self, c: char) {
-        match c {
-            w if w.is_whitespace() => {
-                self.eval_buffer();
-                self.scan_mode = ScanMode::Normal;
-            }
-            an if an.is_alphanumeric() => {
-                self.buffer_string.push(an);
-            }
-            '"' => {
-                self.eval_buffer();
-                self.scan_mode = ScanMode::String;
-            }
-            '/' => {
-                self.eval_buffer();
-                self.scan_mode = ScanMode::PossibleComment;
-            }
-            '(' | ')' | ';' | ':' | '+' | '-' | '*' | '<' | '&' | '!' => {
-                self.eval_buffer();
-                self.tokens.push(match c {
-                    '(' => Token::Bracket(Left),
-                    ')' => Token::Bracket(Right),
-                    ';' => Token::Semicolon,
-                    ':' => Token::Colon,
-                    '+' => Token::Operator(Operator::Plus),
-                    '-' => Token::Operator(Operator::Minus),
-                    '*' => Token::Operator(Operator::Multiply),
-                    '<' => Token::Operator(Operator::LessThan),
-                    '&' => Token::Operator(Operator::And),
-                    '!' => Token::Operator(Operator::Not),
-                    _ => unreachable!(),
-                });
-                self.scan_mode = ScanMode::Normal;
-            }
-            _ => panic!(
-                "unexpected character {} was read during identifier/keyword parsing",
-                c
-            ),
+        if c.is_alphanumeric() || c == '_' {
+            self.buffer.push(c);
+        } else {
+            self.eval_buffer();
+            self.scan_mode = ScanMode::Normal;
+            self.normal_scan(c);
         }
     }
 
-    fn check_for_comment(&mut self, c: char) {}
+    fn check_for_comment(&mut self, c: char) {
+        match c {
+            '/' => self.scan_mode = ScanMode::LineComment,
+            '*' => {
+                self.block_comment_counter += 1;
+                self.scan_mode = ScanMode::BlockComment;
+            }
+            _ => {
+                self.tokens.push(Token::Operator(Operator::Divide));
+                self.scan_mode = ScanMode::Normal;
+            }
+        }
+    }
 
-    fn block_comment_handling(&mut self, c: char) {}
+    fn block_comment_handling(&mut self, c: char) {
+        if c == '*' || c == '/' {
+            let b = self.buffer.pop();
+            if b != Some(c) {
+                self.buffer.extend(b);
+                self.buffer.push(c);
+            }
+            if self.buffer == "/*" {
+                self.block_comment_counter += 1;
+                self.buffer.clear();
+            } else if self.buffer == "*/" {
+                self.block_comment_counter -= 1;
+                self.buffer.clear();
+                if self.block_comment_counter == 0 {
+                    self.scan_mode = ScanMode::Normal;
+                }
+            }
+        } else {
+            self.buffer.clear();
+        }
+    }
 
-    fn line_comment_handling(&mut self, c: char) {}
+    fn line_comment_handling(&mut self, c: char) {
+        if c == '\n' {
+            self.scan_mode = ScanMode::Normal;
+        }
+    }
 }
