@@ -215,14 +215,24 @@ impl Scanner {
                             .expect("error occured when parsing the hex escape into a char");
                         self.buffer_string.push(chr as char);
                         self.escape_buffer.clear();
-                        if c == '"' {
-                            self.tokens
-                                .push(Token::StringLiteral(self.buffer_string.clone()));
-                            self.buffer_string.clear();
-                            self.scan_mode = ScanMode::Normal;
-                        } else {
-                            self.scan_mode = ScanMode::StringLiteral;
+                        self.string_scan(c);
+                    }
+                },
+                '0' ... '7' => {
+                    let mut premature = false;
+                    match c {
+                        '0' ... '7' => self.escape_buffer.push(c),
+                        _ => {
+                            premature = true;
                         }
+                    }
+                    if self.escape_buffer.len() == 3 || premature {
+                        let chr = u8::from_str_radix(&self.escape_buffer[..], 8)
+                            .expect("error occured when parsing the octal escape into a char");
+                        self.buffer_string.push(chr as char);
+                        self.escape_buffer.clear();
+                        self.scan_mode = ScanMode::StringLiteral;
+                        if premature {self.string_scan(c)};
                     }
                 },
                 'U' | 'u' => {
@@ -271,7 +281,7 @@ impl Scanner {
         self.normal_scan(c);
     }
 
-    fn eval_buffer(&mut self) {
+    fn eval_keyword_or_identifier_from_buffer(&mut self) {
         let token = match &*self.buffer_string {
             "var" => Token::KeyWord(KeyWord::Var),
             "end" => Token::KeyWord(KeyWord::End),
@@ -292,22 +302,22 @@ impl Scanner {
     fn identifier_and_keyword_scan(&mut self, c: char) {
         match c {
             w if w.is_whitespace() => {
-                self.eval_buffer();
+                self.eval_keyword_or_identifier_from_buffer();
                 self.scan_mode = ScanMode::Normal;
             }
             an if an.is_alphanumeric() => {
                 self.buffer_string.push(an);
             }
             '"' => {
-                self.eval_buffer();
+                self.eval_keyword_or_identifier_from_buffer();
                 self.scan_mode = ScanMode::StringLiteral;
             }
             '/' => {
-                self.eval_buffer();
+                self.eval_keyword_or_identifier_from_buffer();
                 self.scan_mode = ScanMode::PossibleComment;
             }
             '(' | ')' | ';' | ':' | '+' | '-' | '*' | '<' | '&' | '!' => {
-                self.eval_buffer();
+                self.eval_keyword_or_identifier_from_buffer();
                 self.tokens.push(match c {
                     '(' => Token::Bracket(Left),
                     ')' => Token::Bracket(Right),
