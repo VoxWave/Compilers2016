@@ -70,6 +70,7 @@ enum ScanMode {
     StringLiteral,
     Number,
     PossibleComment,
+    PossibleAssignment,
     LineComment,
     BlockComment,
     Other,
@@ -111,6 +112,7 @@ impl Scanner {
                 Normal => self.normal_scan(c),
                 StringLiteral => self.string_scan(c),
                 Number => self.number_scan(c),
+                PossibleAssignment => self.check_for_assignment(c),
                 PossibleComment => self.check_for_comment(c),
                 LineComment => self.line_comment_handling(c),
                 BlockComment => self.block_comment_handling(c),
@@ -127,7 +129,6 @@ impl Scanner {
             '(' => Token::Bracket(Left),
             ')' => Token::Bracket(Right),
             ';' => Token::Semicolon,
-            ':' => Token::Colon,
             '+' => Token::Operator(Operator::Plus),
             '-' => Token::Operator(Operator::Minus),
             '*' => Token::Operator(Operator::Multiply),
@@ -139,6 +140,10 @@ impl Scanner {
             // In the case of these characters, we don't want to insert a token into our token stream.
             // Instead we choose the approriate scanning mode, possibly push the current character into our buffer
             // for later use and then do an early return from the function in order to proceed to the next character.
+            ':' => {
+                self.scan_mode = ScanMode::PossibleAssignment;
+                return;
+            },
             '"' => {
                 self.scan_mode = ScanMode::StringLiteral;
                 return;
@@ -227,13 +232,24 @@ impl Scanner {
                             .expect("error occured when parsing the hex escape into a char");
                         self.buffer.push(chr as char);
                         self.escape_buffer.clear();
-                        if c == '"' {
-                            self.tokens.push(Token::StringLiteral(self.buffer.clone()));
-                            self.buffer.clear();
-                            self.scan_mode = ScanMode::Normal;
-                        } else {
-                            self.scan_mode = ScanMode::StringLiteral;
+                        self.string_scan(c);
+                    }
+                },
+                '0' ... '7' => {
+                    let mut premature = false;
+                    match c {
+                        '0' ... '7' => self.escape_buffer.push(c),
+                        _ => {
+                            premature = true;
                         }
+                    }
+                    if self.escape_buffer.len() == 3 || premature {
+                        let chr = u8::from_str_radix(&self.escape_buffer[..], 8)
+                            .expect("error occured when parsing the octal escape into a char");
+                        self.buffer.push(chr as char);
+                        self.escape_buffer.clear();
+                        self.scan_mode = ScanMode::StringLiteral;
+                        if premature {self.string_scan(c)};
                     }
                 },
                 // Unicode escapes.
@@ -287,8 +303,16 @@ impl Scanner {
         }
     }
 
-    fn eval_buffer(&mut self) {
-        self.tokens.push(match &*self.buffer {
+    fn check_for_assignment(&mut self, c: char) {
+        self.tokens.push( match c {
+            '=' => Token::Assignment,
+            _ => Token::Colon,
+        });
+        self.normal_scan(c);
+    }
+
+    fn eval_keyword_or_identifier_from_buffer(&mut self) {
+        self.tokens.push( match &*self.buffer {
             "var" => Token::KeyWord(KeyWord::Var),
             "end" => Token::KeyWord(KeyWord::End),
             "for" => Token::KeyWord(KeyWord::For),
@@ -302,13 +326,14 @@ impl Scanner {
             "assert" => Token::KeyWord(KeyWord::Assert),
             _ => Token::Identifier(self.buffer.clone()),
         });
+        self.buffer.clear();
     }
 
     fn identifier_and_keyword_scan(&mut self, c: char) {
         if c.is_alphanumeric() || c == '_' {
             self.buffer.push(c);
         } else {
-            self.eval_buffer();
+            self.eval_keyword_or_identifier_from_buffer();
             self.scan_mode = ScanMode::Normal;
             self.normal_scan(c);
         }
