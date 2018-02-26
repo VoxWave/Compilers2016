@@ -21,8 +21,11 @@ use num_bigint::BigInt;
 use util::Direction;
 use util::Direction::*;
 
+#[cfg(test)]
+mod test;
+
 /// All the different tokens mini-pl has.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Bracket(Direction),
     Identifier(String),
@@ -37,8 +40,8 @@ pub enum Token {
 }
 
 /// All the different operators mini-pl has.
-#[derive(Clone)]
-enum Operator {
+#[derive(Clone, Debug, PartialEq)]
+pub enum Operator {
     Plus,
     Minus,
     Multiply,
@@ -50,8 +53,8 @@ enum Operator {
 }
 
 ///All the keywords mini-pl has.
-#[derive(Clone)]
-enum KeyWord {
+#[derive(Clone, Debug, PartialEq)]
+pub enum KeyWord {
     Var,
     For,
     End,
@@ -75,6 +78,7 @@ enum ScanMode {
     BlockComment,
     Other,
     Escape,
+    Range,
 }
 
 /// Scanner is essentially a finite state automaton that takes in a source code as a string and
@@ -118,6 +122,7 @@ impl Scanner {
                 BlockComment => self.block_comment_handling(c),
                 Other => self.identifier_and_keyword_scan(c),
                 Escape => self.escape_scan(c),
+                Range => self.range_scan(c),
             }
         }
         self.tokens.clone()
@@ -152,6 +157,13 @@ impl Scanner {
                 self.scan_mode = ScanMode::PossibleComment;
                 return;
             }
+
+            '.' => {
+                self.buffer.push(c);
+                self.scan_mode = ScanMode::Range;
+                return;
+            }
+            
             '0'...'9' => {
                 self.buffer.push(c);
                 self.scan_mode = ScanMode::Number;
@@ -235,21 +247,22 @@ impl Scanner {
                         self.string_scan(c);
                     }
                 },
+                //octal escape handling
                 '0' ... '7' => {
-                    let mut premature = false;
+                    let mut stop = false;
                     match c {
                         '0' ... '7' => self.escape_buffer.push(c),
                         _ => {
-                            premature = true;
+                            stop = true;
                         }
                     }
-                    if self.escape_buffer.len() == 3 || premature {
+                    if self.escape_buffer.len() == 3 || stop {
                         let chr = u8::from_str_radix(&self.escape_buffer[..], 8)
                             .expect("error occured when parsing the octal escape into a char");
                         self.buffer.push(chr as char);
                         self.escape_buffer.clear();
                         self.scan_mode = ScanMode::StringLiteral;
-                        if premature {self.string_scan(c)};
+                        if stop {self.string_scan(c)};
                     }
                 },
                 // Unicode escapes.
@@ -304,11 +317,17 @@ impl Scanner {
     }
 
     fn check_for_assignment(&mut self, c: char) {
-        self.tokens.push( match c {
-            '=' => Token::Assignment,
-            _ => Token::Colon,
-        });
-        self.normal_scan(c);
+        match c {
+            '=' => {
+                self.tokens.push(Token::Assignment);
+                self.scan_mode = ScanMode::Normal;
+            },
+            _ => {
+                self.tokens.push(Token::Colon);
+                self.scan_mode = ScanMode::Normal;
+                self.normal_scan(c);
+            },
+        };
     }
 
     fn eval_keyword_or_identifier_from_buffer(&mut self) {
@@ -336,6 +355,18 @@ impl Scanner {
             self.eval_keyword_or_identifier_from_buffer();
             self.scan_mode = ScanMode::Normal;
             self.normal_scan(c);
+        }
+    }
+
+    fn range_scan(&mut self, c: char) {
+        match c {
+            '.' => self.buffer.push(c),
+            _ => panic!("Tried to scan for a range but failed."),
+        }
+        if self.buffer.len() == 2 {
+            self.buffer.clear();
+            self.tokens.push(Token::Range);
+            self.scan_mode = ScanMode::Normal;
         }
     }
 
