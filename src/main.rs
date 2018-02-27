@@ -1,16 +1,17 @@
 extern crate num_bigint;
 
-mod util;
-mod file_handling;
-mod source_processing;
-mod scanner;
-mod interpreter;
+pub mod file_handling;
+pub mod scanner;
+pub mod parser;
+pub mod interpreter;
+pub mod util;
 
-use scanner::Scanner;
+//use scanner::Scanner;
 
 fn main() {
-    let mut scanner = Scanner::new();
-    let tokenized = scanner.scan(&file_handling::get_source_text());
-    let _parsed = source_processing::parse(tokenized);
-    //    let mut interprettable = source_processing::sem_analyze(parsed);
+    // let mut scanner = Scanner::new();
+    // let mut tokens = Vec::new();
+    // scanner.scan(&file_handling::get_source_text(), &mut tokens);
+    // let _parsed = parser::parse(&mut tokens, );
+    // let mut interprettable = source_processing::sem_analyze(parsed);
 }

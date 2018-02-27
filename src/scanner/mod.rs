@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::VecDeque;
+use util::Sink;
 use std::char::from_u32;
 
 use num_bigint::BigInt;
@@ -84,7 +86,7 @@ enum ScanMode {
 /// Scanner is essentially a finite state automaton that takes in a source code as a string and
 pub struct Scanner {
     /// Tokens that have been parsed.
-    tokens: Vec<Token>,
+    tokens: VecDeque<Token>,
     /// Current state of scanning. It used to choose the approriate function to scan for a token.
     scan_mode: ScanMode,
     /// a String used to store previously scanned characters that are needed in the next token.
@@ -99,7 +101,7 @@ impl Scanner {
     /// Creates a new Scanner.
     pub fn new() -> Self {
         Scanner {
-            tokens: Vec::new(),
+            tokens: VecDeque::new(),
             scan_mode: ScanMode::Normal,
             buffer: String::new(),
             escape_buffer: String::new(),
@@ -107,7 +109,10 @@ impl Scanner {
         }
     }
     /// Goes trough the whole source string character by character and produces a vector of tokens.
-    pub fn scan(&mut self, source: &str) -> Vec<Token> {
+    pub fn scan<S>(&mut self, source: &str, token_stream: &mut S)
+    where
+        S: Sink<Token>,
+    {
         use self::ScanMode::*;
         // Foreach through the source string and choose the approriate handling function for the current character
         // according to what state(´ScanMode´) the scanner is currently in.
@@ -124,12 +129,14 @@ impl Scanner {
                 Escape => self.escape_scan(c),
                 Range => self.range_scan(c),
             }
+            while !self.tokens.is_empty() {
+                token_stream.put(self.tokens.pop_back().unwrap());
+            }
         }
-        self.tokens.clone()
     }
 
     fn normal_scan(&mut self, c: char) {
-        self.tokens.push(match c {
+        self.tokens.push_front(match c {
             // With these characters we return the corresponding Token from the match to be pushed into the token stream.
             '(' => Token::Bracket(Left),
             ')' => Token::Bracket(Right),
@@ -148,7 +155,7 @@ impl Scanner {
             ':' => {
                 self.scan_mode = ScanMode::PossibleAssignment;
                 return;
-            },
+            }
             '"' => {
                 self.scan_mode = ScanMode::StringLiteral;
                 return;
@@ -163,7 +170,7 @@ impl Scanner {
                 self.scan_mode = ScanMode::Range;
                 return;
             }
-            
+
             '0'...'9' => {
                 self.buffer.push(c);
                 self.scan_mode = ScanMode::Number;
@@ -189,7 +196,8 @@ impl Scanner {
             // The string literal has ended. We create a token out of the string we've built
             // into our buffer and then return to normal scanning mode.
             '"' => {
-                self.tokens.push(Token::StringLiteral(self.buffer.clone()));
+                self.tokens
+                    .push_front(Token::StringLiteral(self.buffer.clone()));
                 self.buffer.clear();
                 self.scan_mode = ScanMode::Normal;
             }
@@ -248,10 +256,10 @@ impl Scanner {
                     }
                 },
                 //octal escape handling
-                '0' ... '7' => {
+                '0'...'7' => {
                     let mut stop = false;
                     match c {
-                        '0' ... '7' => self.escape_buffer.push(c),
+                        '0'...'7' => self.escape_buffer.push(c),
                         _ => {
                             stop = true;
                         }
@@ -262,9 +270,11 @@ impl Scanner {
                         self.buffer.push(chr as char);
                         self.escape_buffer.clear();
                         self.scan_mode = ScanMode::StringLiteral;
-                        if stop {self.string_scan(c)};
+                        if stop {
+                            self.string_scan(c)
+                        };
                     }
-                },
+                }
                 // Unicode escapes.
                 // \U is a 4 byte unicode escape sequence and is represented as an 8 digit hexadecimal number.
                 // \u is a 2 byte unicode escape sequence and is represented as an 4 digit hexadecimal number.
@@ -303,7 +313,7 @@ impl Scanner {
         match c {
             '0'...'9' => self.buffer.push(c),
             _ => {
-                self.tokens.push(
+                self.tokens.push_front(
                     self.buffer
                         .parse()
                         .map(Token::Number)
@@ -319,19 +329,19 @@ impl Scanner {
     fn check_for_assignment(&mut self, c: char) {
         match c {
             '=' => {
-                self.tokens.push(Token::Assignment);
+                self.tokens.push_front(Token::Assignment);
                 self.scan_mode = ScanMode::Normal;
-            },
+            }
             _ => {
-                self.tokens.push(Token::Colon);
+                self.tokens.push_front(Token::Colon);
                 self.scan_mode = ScanMode::Normal;
                 self.normal_scan(c);
-            },
+            }
         };
     }
 
     fn eval_keyword_or_identifier_from_buffer(&mut self) {
-        self.tokens.push( match &*self.buffer {
+        self.tokens.push_front(match &*self.buffer {
             "var" => Token::KeyWord(KeyWord::Var),
             "end" => Token::KeyWord(KeyWord::End),
             "for" => Token::KeyWord(KeyWord::For),
@@ -365,7 +375,7 @@ impl Scanner {
         }
         if self.buffer.len() == 2 {
             self.buffer.clear();
-            self.tokens.push(Token::Range);
+            self.tokens.push_front(Token::Range);
             self.scan_mode = ScanMode::Normal;
         }
     }
@@ -378,7 +388,7 @@ impl Scanner {
                 self.scan_mode = ScanMode::BlockComment;
             }
             _ => {
-                self.tokens.push(Token::Operator(Operator::Divide));
+                self.tokens.push_front(Token::Operator(Operator::Divide));
                 self.scan_mode = ScanMode::Normal;
             }
         }
