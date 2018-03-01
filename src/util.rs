@@ -7,6 +7,10 @@ pub enum Direction {
     Right,
 }
 
+///´Source´'s are sources for some type T. Taking from a source returns an optional.
+/// While a ´Source´ has things it should return Some(T).
+/// If the ´Source´ permanently runs out of things it should return None signaling to 
+/// the user of the source should move on to do other things. 
 pub trait Source<T> {
     fn take(&mut self) -> Option<T>;
 }
@@ -23,6 +27,7 @@ impl<T> Source<T> for Receiver<T> {
     }
 }
 
+/// Sinks are things take take in some type T.
 pub trait Sink<T> {
     fn put(&mut self, thing: T);
 }
