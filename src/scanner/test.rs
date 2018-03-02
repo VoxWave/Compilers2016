@@ -7,7 +7,7 @@ fn example_program_1() {
  print X;"#;
 
     let mut scanner = Scanner::new();
-    let mut tokens = Vec::new(); 
+    let mut tokens = Vec::new();
     scanner.scan(source, &mut tokens);
     assert_eq!(
         tokens,
@@ -44,7 +44,7 @@ fn example_program_2() {
  end for;
  assert (x = nTimes);"#;
     let mut scanner = Scanner::new();
-    let mut tokens = Vec::new(); 
+    let mut tokens = Vec::new();
     scanner.scan(source, &mut tokens);
     assert_eq!(
         tokens,
@@ -109,7 +109,7 @@ fn example_program_3() {
  print "The result is: ";
  print v; "#;
     let mut scanner = Scanner::new();
-    let mut tokens = Vec::new(); 
+    let mut tokens = Vec::new();
     scanner.scan(source, &mut tokens);
     assert_eq!(
         tokens,

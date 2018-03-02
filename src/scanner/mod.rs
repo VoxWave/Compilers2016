@@ -226,7 +226,7 @@ impl Scanner {
                     //return because in the case these characters we want to gather more characters in order to parse the escape correctly.
                     return;
                 }
-                _ => panic!("Escape \\{} not supported", c),
+                _ => panic!("Escape \\{:#?} not supported", c),
             };
             //the escape has been handled. push the character into the string we're forming and return back to normal string scanning.
             self.buffer.push(escaped_char);

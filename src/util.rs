@@ -9,8 +9,8 @@ pub enum Direction {
 
 ///´Source´'s are sources for some type T. Taking from a source returns an optional.
 /// While a ´Source´ has things it should return Some(T).
-/// If the ´Source´ permanently runs out of things it should return None signaling to 
-/// the user of the source should move on to do other things. 
+/// If the ´Source´ permanently runs out of things it should return None signaling to
+/// the user of the source should move on to do other things.
 pub trait Source<T> {
     fn take(&mut self) -> Option<T>;
 }
