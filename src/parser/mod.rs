@@ -25,11 +25,11 @@ pub enum Statement {
     Assert(Expression),
 }
 
-//grammar has been changed.
-//Original:
+// grammar has been changed.
+// Original:
 // <expr> ::= <opnd> <op> <opnd>
 //         | [ <unary_op> ] <opnd>
-//New:
+// New:
 // <expr> ::= <opnd> <op> <opnd>
 //         |  <unary_op> <opnd>
 //         |  <opnd>
@@ -41,6 +41,11 @@ pub enum Expression {
     Singleton(Operand),
 }
 
+// <opnd> ::=
+//   <int>
+// | <string>
+// | <var_ident>
+// | "(" expr ")"
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operand {
     Int(BigInt),
@@ -77,6 +82,7 @@ where
     O: Sink<Statement> + 'a,
 {
     buffer: Vec<Token>,
+    for_buffer: Vec<(String, Expression, Expression, Vec<Statement>)>,
     statements: &'a mut O,
 }
 
@@ -112,7 +118,7 @@ where
 //  <reserved keyword> ::=
 //  "var" | "for" | "end" | "in" | "do" | "read" |
 //  "print" | "int" | "string" | "bool" | "assert"
-// I tried the design pattern described here 
+// I tried the design pattern described here
 // https://dev.to/mindflavor/lets-build-zork-using-rust-1opm
 impl<'a, O> Parser<'a, O>
 where
@@ -139,6 +145,7 @@ where
                 KeyWord::Assert => State(Self::assert_parse),
                 _ => panic!("a statement cannot start with the keyword {:#?}", keyword),
             },
+            //empty statements are allowed. They are skiped.
             Token::Semicolon => State(Self::normal_parse),
 
             _ => panic!("unexpected token: {:#?}", t),
@@ -146,7 +153,6 @@ where
     }
 
     fn variable_definition_parse(&mut self, t: Token) -> State<'a, O> {
-        
         State(Self::variable_definition_parse)
     }
 
@@ -162,22 +168,35 @@ where
                 Token::Semicolon => {
                     match &self.buffer[0] {
                         &Token::Identifier(ref identifier) => {
-                            self.statements.put(Statement::Assignment(identifier.clone(), Self::parse_expression(&self.buffer[2..])));
+                            self.statements.put(Statement::Assignment(
+                                identifier.clone(), Self::parse_expression(&self.buffer[2..])));
                         }
-                        _ => unreachable!("the first token of the buffer during assignment parsing was something other than an identifier"),
+                        _ => unreachable!(
+                                "the first token of the buffer during assignment parsing was something other than an identifier"
+                            ),
                     }
                     State(Self::normal_parse)
-                },
-                Token::Bracket(_) | Token::Operator(_) | Token::Identifier(_) | Token::KeyWord(KeyWord::Int) | Token::KeyWord(KeyWord::String) => {
+                }
+                Token::Bracket(_)
+                | Token::Operator(_)
+                | Token::Identifier(_)
+                | Token::Number(_)
+                | Token::StringLiteral(_) => {
                     self.buffer.push(t);
                     State(Self::assignment_parse)
-                },
+                }
                 _ => panic!("unexpected Token {:#?} read during", t),
             }
         }
     }
 
+    // "for" <var_ident> "in" <expr> ".." <expr> "do" <stmts> "end" "for"
     fn for_loop_parse(&mut self, t: Token) -> State<'a, O> {
+        match self.buffer.len() {
+            0 => {
+                if let 
+            }
+        }
         State(Self::for_loop_parse)
     }
 
