@@ -83,6 +83,7 @@ where
 {
     buffer: Vec<Token>,
     for_buffer: Vec<(String, Expression, Expression, Vec<Statement>)>,
+    for_range_pointer: usize,
     statements: &'a mut O,
 }
 
@@ -127,6 +128,8 @@ where
     fn new(statements: &'a mut O) -> Self {
         Parser {
             buffer: Vec::new(),
+            for_buffer: Vec::new(),
+            for_range_pointer: 0,
             statements,
         }
     }
@@ -193,9 +196,15 @@ where
     // "for" <var_ident> "in" <expr> ".." <expr> "do" <stmts> "end" "for"
     fn for_loop_parse(&mut self, t: Token) -> State<'a, O> {
         match self.buffer.len() {
-            0 => {
-                if let 
-            }
+            0 => match t {
+                Token::Identifier(_) => self.buffer.push(t),
+                _ => panic!("Expected an identifier, found {:#?}", t),
+            }, 
+            1 => match t {
+                Token::KeyWord(KeyWord::In) => self.buffer.push(t),
+                _ => panic!("Expected keyword 'in', found {:#?}")
+            },
+            _ => {},
         }
         State(Self::for_loop_parse)
     }
