@@ -146,6 +146,7 @@ where
                 KeyWord::Read => State(Self::read_parse),
                 KeyWord::Print => State(Self::print_parse),
                 KeyWord::Assert => State(Self::assert_parse),
+                KeyWord::End => State(Self::expect_end_for),
                 _ => panic!("a statement cannot start with the keyword {:#?}", keyword),
             },
             //empty statements are allowed. They are skiped.
@@ -171,6 +172,18 @@ where
                 Token::Semicolon => {
                     match &self.buffer[0] {
                         &Token::Identifier(ref identifier) => {
+                            let statement = Statement::Assignment(
+                                    identifier.clone(),
+                                    Self::parse_expression(&self.buffer[2..])
+                            );
+                            //we are not building any for loop statements currently so put the statement we've formed into the statement stream.
+                            if self.for_buffer.is_empty() {
+                                self.statements.put(statement);
+                            } else {
+                                // take the top element of the for stack and push the statement into 
+                                // the statements vector(fourth element of the tuple hence the .3) of that for statement.
+                                self.for_buffer[self.for_buffer.len()-1].3.push(statement);
+                            }
                             self.statements.put(Statement::Assignment(
                                 identifier.clone(), Self::parse_expression(&self.buffer[2..])));
                         }
@@ -199,14 +212,34 @@ where
             0 => match t {
                 Token::Identifier(_) => self.buffer.push(t),
                 _ => panic!("Expected an identifier, found {:#?}", t),
-            }, 
+            },
             1 => match t {
                 Token::KeyWord(KeyWord::In) => self.buffer.push(t),
-                _ => panic!("Expected keyword 'in', found {:#?}")
+                _ => panic!("Expected keyword 'in', found {:#?}"),
             },
-            _ => {},
+            _ => match t {},
         }
         State(Self::for_loop_parse)
+    }
+
+    fn expect_end_for(&mut self, t: Token) -> State<'a, O> {
+        match t {
+            Token::KeyWord(KeyWord::For) => {
+                let (identifier, from, to, statements) = self.for_buffer
+                    .pop()
+                    .expect("encountered an end for but no for loops we're initialized.");
+                if self.for_buffer.is_empty() {
+                    self.statements
+                        .put(Statement::For(identifier, from, to, statements));
+                } else {
+                    self.for_buffer[self.for_buffer.len() - 1]
+                        .3
+                        .push(Statement::For(identifier, from, to, statements));
+                }
+            }
+            _ => panic!("Expected end after for, found {:#?} instead", t),
+        };
+        State(Self::normal_parse)
     }
 
     fn read_parse(&mut self, t: Token) -> State<'a, O> {
