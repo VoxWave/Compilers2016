@@ -182,7 +182,8 @@ where
                             } else {
                                 // take the top element of the for stack and push the statement into 
                                 // the statements vector(fourth element of the tuple hence the .3) of that for statement.
-                                self.for_buffer[self.for_buffer.len()-1].3.push(statement);
+                                let len = self.for_buffer.len();
+                                self.for_buffer[len-1].3.push(statement);
                             }
                             self.statements.put(Statement::Assignment(
                                 identifier.clone(), Self::parse_expression(&self.buffer[2..])));
@@ -217,7 +218,44 @@ where
                 Token::KeyWord(KeyWord::In) => self.buffer.push(t),
                 _ => panic!("Expected keyword 'in', found {:#?}"),
             },
-            _ => match t {},
+            _ => match t {
+                Token::KeyWord(KeyWord::Do) => {
+                    if self.for_range_pointer < 3 {
+                        panic!("incorrect for loop range");
+                    }
+                    let identifier = match self.buffer[0] {
+                        Token::Identifier(ref i) => i.clone(),
+                        _ => unreachable!("the buffer did not have an identifier as the first element when parsing a for loop"),
+                    };
+                    self.for_buffer.push((
+                        identifier,
+                        Self::parse_expression(&self.buffer[2..self.for_range_pointer]),
+                        Self::parse_expression(&self.buffer[(self.for_range_pointer + 1)..self.buffer.len()]),
+                        Vec::new(),
+                    ));
+                    self.for_range_pointer = 0;
+                    self.buffer.clear();
+                    return State(Self::normal_parse);
+                },
+                Token::Range => {
+                    if self.for_range_pointer == 0 {
+                        self.for_range_pointer = self.buffer.len();
+                        self.buffer.push(t);
+                    } else {
+                        panic!("found more than one range during for loop parsing");
+                    }
+                }
+                Token::Bracket(_)
+                | Token::Operator(_)
+                | Token::Identifier(_)
+                | Token::Number(_)
+                | Token::StringLiteral(_) => {
+                    self.buffer.push(t);
+                },
+                _ => {
+                    panic!("error parsing a for loop: {:#?} is not a valid token in an expression")
+                }
+            },
         }
         State(Self::for_loop_parse)
     }
@@ -228,13 +266,16 @@ where
                 let (identifier, from, to, statements) = self.for_buffer
                     .pop()
                     .expect("encountered an end for but no for loops we're initialized.");
+
+                let for_statement = Statement::For(identifier, from, to, statements);
+
                 if self.for_buffer.is_empty() {
-                    self.statements
-                        .put(Statement::For(identifier, from, to, statements));
+                    self.statements.put(for_statement);
                 } else {
-                    self.for_buffer[self.for_buffer.len() - 1]
+                    let len = self.for_buffer.len();
+                    self.for_buffer[len - 1]
                         .3
-                        .push(Statement::For(identifier, from, to, statements));
+                        .push(for_statement);
                 }
             }
             _ => panic!("Expected end after for, found {:#?} instead", t),
