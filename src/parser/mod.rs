@@ -83,6 +83,7 @@ where
 {
     buffer: Vec<Token>,
     for_buffer: Vec<(String, Expression, Expression, Vec<Statement>)>,
+    for_range_pointer: usize,
     statements: &'a mut O,
 }
 
@@ -128,6 +129,7 @@ where
         Parser {
             buffer: Vec::new(),
             for_buffer: Vec::new(),
+            for_range_pointer: 0,
             statements,
         }
     }
@@ -144,6 +146,7 @@ where
                 KeyWord::Read => State(Self::read_parse),
                 KeyWord::Print => State(Self::print_parse),
                 KeyWord::Assert => State(Self::assert_parse),
+                KeyWord::End => State(Self::expect_end_for),
                 _ => panic!("a statement cannot start with the keyword {:#?}", keyword),
             },
             //empty statements are allowed. They are skiped.
@@ -169,6 +172,19 @@ where
                 Token::Semicolon => {
                     match &self.buffer[0] {
                         &Token::Identifier(ref identifier) => {
+                            let statement = Statement::Assignment(
+                                    identifier.clone(),
+                                    Self::parse_expression(&self.buffer[2..])
+                            );
+                            //we are not building any for loop statements currently so put the statement we've formed into the statement stream.
+                            if self.for_buffer.is_empty() {
+                                self.statements.put(statement);
+                            } else {
+                                // take the top element of the for stack and push the statement into 
+                                // the statements vector(fourth element of the tuple hence the .3) of that for statement.
+                                let len = self.for_buffer.len();
+                                self.for_buffer[len-1].3.push(statement);
+                            }
                             self.statements.put(Statement::Assignment(
                                 identifier.clone(), Self::parse_expression(&self.buffer[2..])));
                         }
@@ -193,23 +209,78 @@ where
 
     // "for" <var_ident> "in" <expr> ".." <expr> "do" <stmts> "end" "for"
     fn for_loop_parse(&mut self, t: Token) -> State<'a, O> {
-        match &self.buffer.len() {
-            //the token after the for token has to be an indentifier.
-            &0 => {
-                if let Token::Identifier(_) = t {
-                    self.buffer.push(t);
-                } else {
-                    panic!("expected an identifier. found a {:#?}", t);
+        match self.buffer.len() {
+            0 => match t {
+                Token::Identifier(_) => self.buffer.push(t),
+                _ => panic!("Expected an identifier, found {:#?}", t),
+            },
+            1 => match t {
+                Token::KeyWord(KeyWord::In) => self.buffer.push(t),
+                _ => panic!("Expected keyword 'in', found {:#?}"),
+            },
+            _ => match t {
+                Token::KeyWord(KeyWord::Do) => {
+                    if self.for_range_pointer < 3 {
+                        panic!("incorrect for loop range");
+                    }
+                    let identifier = match self.buffer[0] {
+                        Token::Identifier(ref i) => i.clone(),
+                        _ => unreachable!("the buffer did not have an identifier as the first element when parsing a for loop"),
+                    };
+                    self.for_buffer.push((
+                        identifier,
+                        Self::parse_expression(&self.buffer[2..self.for_range_pointer]),
+                        Self::parse_expression(&self.buffer[(self.for_range_pointer + 1)..self.buffer.len()]),
+                        Vec::new(),
+                    ));
+                    self.for_range_pointer = 0;
+                    self.buffer.clear();
+                    return State(Self::normal_parse);
+                },
+                Token::Range => {
+                    if self.for_range_pointer == 0 {
+                        self.for_range_pointer = self.buffer.len();
+                        self.buffer.push(t);
+                    } else {
+                        panic!("found more than one range during for loop parsing");
+                    }
                 }
-            }
-            &2 => {
-                
-            }
-            _ => {
-
-            }
+                Token::Bracket(_)
+                | Token::Operator(_)
+                | Token::Identifier(_)
+                | Token::Number(_)
+                | Token::StringLiteral(_) => {
+                    self.buffer.push(t);
+                },
+                _ => {
+                    panic!("error parsing a for loop: {:#?} is not a valid token in an expression")
+                }
+            },
         }
         State(Self::for_loop_parse)
+    }
+
+    fn expect_end_for(&mut self, t: Token) -> State<'a, O> {
+        match t {
+            Token::KeyWord(KeyWord::For) => {
+                let (identifier, from, to, statements) = self.for_buffer
+                    .pop()
+                    .expect("encountered an end for but no for loops we're initialized.");
+
+                let for_statement = Statement::For(identifier, from, to, statements);
+
+                if self.for_buffer.is_empty() {
+                    self.statements.put(for_statement);
+                } else {
+                    let len = self.for_buffer.len();
+                    self.for_buffer[len - 1]
+                        .3
+                        .push(for_statement);
+                }
+            }
+            _ => panic!("Expected end after for, found {:#?} instead", t),
+        };
+        State(Self::normal_parse)
     }
 
     fn read_parse(&mut self, t: Token) -> State<'a, O> {
