@@ -127,6 +127,7 @@ where
     fn new(statements: &'a mut O) -> Self {
         Parser {
             buffer: Vec::new(),
+            for_buffer: Vec::new(),
             statements,
         }
     }
@@ -192,9 +193,20 @@ where
 
     // "for" <var_ident> "in" <expr> ".." <expr> "do" <stmts> "end" "for"
     fn for_loop_parse(&mut self, t: Token) -> State<'a, O> {
-        match self.buffer.len() {
-            0 => {
-                if let 
+        match &self.buffer.len() {
+            //the token after the for token has to be an indentifier.
+            &0 => {
+                if let Token::Identifier(_) = t {
+                    self.buffer.push(t);
+                } else {
+                    panic!("expected an identifier. found a {:#?}", t);
+                }
+            }
+            &2 => {
+                
+            }
+            _ => {
+
             }
         }
         State(Self::for_loop_parse)
