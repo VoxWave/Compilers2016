@@ -156,11 +156,13 @@ where
         }
     }
 
+    // "var" <var_ident> ":" <type> [ ":=" <expr> ]
     fn variable_definition_parse(&mut self, t: Token) -> State<'a, O> {
         State(Self::variable_definition_parse)
     }
 
     fn assignment_parse(&mut self, t: Token) -> State<'a, O> {
+        //let len = self.buffer.len();
         if self.buffer.len() == 1 {
             match t {
                 Token::Assignment => self.buffer.push(t),
@@ -170,28 +172,18 @@ where
         } else {
             match t {
                 Token::Semicolon => {
-                    match &self.buffer[0] {
+                    let statement = match &self.buffer[0] {
                         &Token::Identifier(ref identifier) => {
-                            let statement = Statement::Assignment(
+                            Statement::Assignment(
                                     identifier.clone(),
                                     Self::parse_expression(&self.buffer[2..])
-                            );
-                            //we are not building any for loop statements currently so put the statement we've formed into the statement stream.
-                            if self.for_buffer.is_empty() {
-                                self.statements.put(statement);
-                            } else {
-                                // take the top element of the for stack and push the statement into 
-                                // the statements vector(fourth element of the tuple hence the .3) of that for statement.
-                                let len = self.for_buffer.len();
-                                self.for_buffer[len-1].3.push(statement);
-                            }
-                            self.statements.put(Statement::Assignment(
-                                identifier.clone(), Self::parse_expression(&self.buffer[2..])));
-                        }
+                            )
+                        },
                         _ => unreachable!(
-                                "the first token of the buffer during assignment parsing was something other than an identifier"
-                            ),
-                    }
+                            "the first token of the buffer during assignment parsing was something other than an identifier"
+                        ),
+                    };
+                    self.handle_statement(statement);
                     State(Self::normal_parse)
                 }
                 Token::Bracket(_)
@@ -230,13 +222,15 @@ where
                     self.for_buffer.push((
                         identifier,
                         Self::parse_expression(&self.buffer[2..self.for_range_pointer]),
-                        Self::parse_expression(&self.buffer[(self.for_range_pointer + 1)..self.buffer.len()]),
+                        Self::parse_expression(
+                            &self.buffer[(self.for_range_pointer + 1)..self.buffer.len()],
+                        ),
                         Vec::new(),
                     ));
                     self.for_range_pointer = 0;
                     self.buffer.clear();
                     return State(Self::normal_parse);
-                },
+                }
                 Token::Range => {
                     if self.for_range_pointer == 0 {
                         self.for_range_pointer = self.buffer.len();
@@ -251,7 +245,7 @@ where
                 | Token::Number(_)
                 | Token::StringLiteral(_) => {
                     self.buffer.push(t);
-                },
+                }
                 _ => {
                     panic!("error parsing a for loop: {:#?} is not a valid token in an expression")
                 }
@@ -269,24 +263,23 @@ where
 
                 let for_statement = Statement::For(identifier, from, to, statements);
 
-                if self.for_buffer.is_empty() {
-                    self.statements.put(for_statement);
-                } else {
-                    let len = self.for_buffer.len();
-                    self.for_buffer[len - 1]
-                        .3
-                        .push(for_statement);
-                }
+                self.handle_statement(for_statement);
             }
             _ => panic!("Expected end after for, found {:#?} instead", t),
         };
         State(Self::normal_parse)
     }
 
+    // "read" <var_ident>
     fn read_parse(&mut self, t: Token) -> State<'a, O> {
-        State(Self::read_parse)
+        match t {
+            Token::Identifier(i) => self.handle_statement(Statement::Read(i)),
+            _ => panic!("expected an identifier after a read"),
+        };
+        State(Self::normal_parse)
     }
 
+    // "print" <expr>
     fn print_parse(&mut self, t: Token) -> State<'a, O> {
         State(Self::print_parse)
     }
@@ -297,6 +290,16 @@ where
 
     fn parse_expression(tokens: &[Token]) -> Expression {
         Expression::Singleton(Operand::Int(1.into()))
+    }
+
+    fn handle_statement(&mut self, statement: Statement) {
+        if self.for_buffer.is_empty() {
+            self.statements.put(statement);
+        } else {
+            let len = self.for_buffer.len()-1;
+            self.for_buffer[len].3.push(statement);
+        }
+        self.buffer.clear();
     }
 }
 
