@@ -136,53 +136,42 @@ impl Scanner {
     }
 
     fn normal_scan(&mut self, c: char) {
-        self.tokens.push_front(match c {
-            // With these characters we return the corresponding Token from the match to be pushed into the token stream.
-            '(' => Token::Bracket(Left),
-            ')' => Token::Bracket(Right),
-            ';' => Token::Semicolon,
-            '+' => Token::Operator(Operator::Plus),
-            '-' => Token::Operator(Operator::Minus),
-            '*' => Token::Operator(Operator::Multiply),
-            '<' => Token::Operator(Operator::LessThan),
-            '=' => Token::Operator(Operator::Equals),
-            '&' => Token::Operator(Operator::And),
-            '!' => Token::Operator(Operator::Not),
+        self.scan_mode = match c {
+            // These characters correspond to specific tokens and don't require any further processing.
+            '(' | ')' | ';' | '+' | '-' | '*' | '<' | '=' | '&' | '!' => {
+                self.tokens.push_front(match c {
+                    '(' => Token::Bracket(Left),
+                    ')' => Token::Bracket(Right),
+                    ';' => Token::Semicolon,
+                    '+' => Token::Operator(Operator::Plus),
+                    '-' => Token::Operator(Operator::Minus),
+                    '*' => Token::Operator(Operator::Multiply),
+                    '<' => Token::Operator(Operator::LessThan),
+                    '=' => Token::Operator(Operator::Equals),
+                    '&' => Token::Operator(Operator::And),
+                    '!' => Token::Operator(Operator::Not),
+                    _ => unreachable!(),
+                });
+                ScanMode::Normal
+            }
+            //whitespace is just ignored.
+            ' ' | '\n' | '\t' | '\r' => ScanMode::Normal,
 
-            // In the case of these characters, we don't want to insert a token into our token stream.
-            // Instead we choose the approriate scanning mode, possibly push the current character into our buffer
-            // for later use and then do an early return from the function in order to proceed to the next character.
-            ':' => {
-                self.scan_mode = ScanMode::PossibleAssignment;
-                return;
-            }
-            '"' => {
-                self.scan_mode = ScanMode::StringLiteral;
-                return;
-            }
-            '/' => {
-                self.scan_mode = ScanMode::PossibleComment;
-                return;
-            }
+            // These characters don't correspond directly to a token so we return the appropriate scanmode.
+            ':' => ScanMode::PossibleAssignment,
+            '"' => ScanMode::StringLiteral,
+            '/' => ScanMode::PossibleComment,
+            '.' => ScanMode::Range,
 
-            '.' => {
-                self.buffer.push(c);
-                self.scan_mode = ScanMode::Range;
-                return;
-            }
-
-            '0'...'9' => {
-                self.buffer.push(c);
-                self.scan_mode = ScanMode::Number;
-                return;
-            }
-            ' ' | '\n' | '\t' | '\r' => return,
+            // With thse we also need to save the character in the buffer as it is needed later.
             _ => {
                 self.buffer.push(c);
-                self.scan_mode = ScanMode::Other;
-                return;
+                match c {
+                    '0'...'9' => ScanMode::Number,
+                    _ => ScanMode::Other
+                }
             }
-        });
+        };
     }
 
     fn string_scan(&mut self, c: char) {
@@ -373,7 +362,7 @@ impl Scanner {
             '.' => self.buffer.push(c),
             _ => panic!("Tried to scan for a range but failed."),
         }
-        if self.buffer.len() == 2 {
+        if !self.buffer.is_empty() {
             self.buffer.clear();
             self.tokens.push_front(Token::Range);
             self.scan_mode = ScanMode::Normal;
