@@ -158,7 +158,14 @@ where
 
     // "var" <var_ident> ":" <type> [ ":=" <expr> ]
     fn variable_definition_parse(&mut self, t: Token) -> State<'a, O> {
-        State(Self::variable_definition_parse)
+        match self.buffer.len() {
+            1 => match t {
+                Token::Identifier => self.buffer.push(t),
+                _ => panic!("expected an identifier but found {:#?} instead", t),
+            },
+            2
+            _ => {}
+        } 
     }
 
     fn assignment_parse(&mut self, t: Token) -> State<'a, O> {
