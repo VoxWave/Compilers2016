@@ -159,13 +159,23 @@ where
     // "var" <var_ident> ":" <type> [ ":=" <expr> ]
     fn variable_definition_parse(&mut self, t: Token) -> State<'a, O> {
         match self.buffer.len() {
-            1 => match t {
-                Token::Identifier => self.buffer.push(t),
-                _ => panic!("expected an identifier but found {:#?} instead", t),
+            0 => match t {
+                Token::Identifier(_) => self.buffer.push(t),
+                _ => panic!("Expected an identifier but found {:#?} instead", t),
             },
-            2
-            _ => {}
-        } 
+            1 => match t {
+                Token::Colon => self.buffer.push(t),
+                _ => panic!("Expected a colon but found {:#?} instead", t),
+            },
+            2 => match t {
+                Token::KeyWord(KeyWord::String) | Token::KeyWord(KeyWord::Int) => self.buffer.push(t),
+                _ => panic!("Expected a type signature but found {:#?} instead", t),
+            },
+            _ => {
+                
+            },
+        }
+        State(Self::variable_definition_parse) 
     }
 
     fn assignment_parse(&mut self, t: Token) -> State<'a, O> {
@@ -266,7 +276,7 @@ where
             Token::KeyWord(KeyWord::For) => {
                 let (identifier, from, to, statements) = self.for_buffer
                     .pop()
-                    .expect("encountered an end for but no for loops we're initialized.");
+                    .expect("encountered an end for but no for loops were initialized.");
 
                 let for_statement = Statement::For(identifier, from, to, statements);
 
@@ -274,7 +284,7 @@ where
             }
             _ => panic!("Expected end after for, found {:#?} instead", t),
         };
-        State(Self::normal_parse)
+        State(Self::expect_semicolon)
     }
 
     // "read" <var_ident>
@@ -308,6 +318,13 @@ where
         }
         self.buffer.clear();
     }
+
+    fn expect_semicolon(&mut self, t: Token) -> State<'a, O> {
+        match t {
+            Token::Semicolon => State(Self::normal_parse),
+            _ => panic!("expected a semicolon, found {:#?} instead", t),
+        }
+    } 
 }
 
 struct State<'a, O>(fn(&mut Parser<'a, O>, Token) -> State<'a, O>)
