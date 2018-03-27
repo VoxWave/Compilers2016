@@ -168,7 +168,7 @@ impl Scanner {
                 self.buffer.push(c);
                 match c {
                     '0'...'9' => ScanMode::Number,
-                    _ => ScanMode::Other
+                    _ => ScanMode::Other,
                 }
             }
         };
