@@ -171,6 +171,16 @@ where
                 Token::KeyWord(KeyWord::String) | Token::KeyWord(KeyWord::Int) => self.buffer.push(t),
                 _ => panic!("Expected a type signature but found {:#?} instead", t),
             },
+            3 => match t {
+                Token::Semicolon => {
+                    let indentifier = match self.buffer[0] {
+                        Token::Identifier(i) => i,
+                        _ => unreachable!("There should be an identifier in the first"),
+                    }
+                    self.handle_statement(Statement::Declaration(self.buffer[]))
+                },
+                _ => self.buffer.push(t),
+            },
             _ => {
                 
             },
