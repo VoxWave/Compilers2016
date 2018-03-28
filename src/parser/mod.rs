@@ -346,9 +346,38 @@ where
 
     // "assert" "(" <expr> ")"
     fn assert_parse(&mut self, t: Token) -> State<'a, O> {
+        match self.buffer.len() {
+            0 => match t {
+                Token::Bracket(Direction::Left) => self.buffer.push(t),
+                _ => panic!("expected a left bracket after assert but found {:#?} instead", t),
+            }
+            _ => match t {
+                Token::Semicolon => {
+                    match self.buffer.pop().unwrap() {
+                        Token::Bracket(Direction::Right) => {
+                            if self.buffer.len() > 1 {
+                                let expression = Self::parse_expression(&self.buffer[1..]);
+                                self.handle_statement(Statement::Assert(expression));
+                                return State(Self::normal_parse);
+                            } else {
+                                panic!("invalid expression.");
+                            }
+                        },
+                        _ => panic!("expected a right parenthesis to end the expression in an assert statement"),
+                    }
+                },
+                _ => self.buffer.push(t),
+            }
+        }
         State(Self::assert_parse)
     }
 
+    //  <expr> ::= <opnd> <op> <opnd>
+    //  | [ <unary_op> ] <opnd>
+    //  <opnd> ::= <int>
+    //  | <string>
+    //  | <var_ident>
+    //  | "(" expr ")"
     fn parse_expression(tokens: &[Token]) -> Expression {
         Expression::Singleton(Operand::Int(1.into()))
     }
