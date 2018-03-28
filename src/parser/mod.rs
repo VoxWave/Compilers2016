@@ -66,7 +66,7 @@ pub enum Expression {
 pub enum Operand {
     Int(BigInt),
     StringLiteral(String),
-    Bool,
+    Identifier(String),
     Expr(Box<Expression>),
 }
 
@@ -379,6 +379,18 @@ where
     //  | <var_ident>
     //  | "(" expr ")"
     fn parse_expression(tokens: &[Token]) -> Expression {
+        match tokens.len() {
+            0 => panic!("tried to parse an expression but there was nothing to parse."),
+            1 => {
+                Expression::Singleton(match tokens[0] {
+                    Token::Number(n) => Operand::Int(n),
+                    Token::StringLiteral(s) => Operand::StringLiteral(s),
+                    Token::Identifier(i) => Operand::Identifier(i),
+                    _ => panic!();
+                });
+            },
+            _ => {},
+        }
         Expression::Singleton(Operand::Int(1.into()))
     }
 
