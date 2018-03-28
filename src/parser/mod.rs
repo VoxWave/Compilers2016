@@ -174,6 +174,49 @@ where
 
     // "var" <var_ident> ":" <type> [ ":=" <expr> ]
     fn variable_definition_parse(&mut self, t: Token) -> State<'a, O> {
+        match self.buffer.len() {
+            0 => match t {
+                Token::Identifier(_) => self.buffer.push(t),
+                _ => panic!("Expected an identifier but found {:#?} instead", t),
+            },
+            1 => match t {
+                Token::Colon => self.buffer.push(t),
+                _ => panic!("Expected a colon but found {:#?} instead", t),
+            },
+            2 => match t {
+                Token::KeyWord(KeyWord::String)
+                | Token::KeyWord(KeyWord::Int)
+                | Token::KeyWord(KeyWord::Bool) => self.buffer.push(t),
+                _ => panic!("Expected a type signature but found {:#?} instead", t),
+            },
+            n => match t {
+                Token::Semicolon => {
+                    let identifier = match self.buffer[0] {
+                        Token::Identifier(ref i) => i.clone(),
+                        _ => unreachable!(),
+                    };
+                    let typ = match self.buffer[2] {
+                        Token::KeyWord(KeyWord::String) => Type::Str,
+                        Token::KeyWord(KeyWord::Int) => Type::Int,
+                        Token::KeyWord(KeyWord::Bool) => Type::Bool,
+                        _ => unreachable!(),
+                    };
+                    let expr = match n {
+                        3 => None,
+                        4 => panic!("Var statement ended prematurely."),
+                        n if n > 4 => Some(Self::parse_expression(&self.buffer[4..])),
+                        _ => unreachable!(),
+                    };
+                    self.handle_statement(Statement::Declaration(identifier, typ, expr));
+                    return State(Self::normal_parse);
+                }
+                Token::Assignment => match n {
+                    3 => self.buffer.push(t),
+                    _ => panic!("an assignment is not valid in an expression"),
+                },
+                _ => self.buffer.push(t),
+            },
+        }
         State(Self::variable_definition_parse)
     }
 
@@ -202,11 +245,7 @@ where
                     self.handle_statement(statement);
                     State(Self::normal_parse)
                 }
-                Token::Bracket(_)
-                | Token::Operator(_)
-                | Token::Identifier(_)
-                | Token::Number(_)
-                | Token::StringLiteral(_) => {
+                _ => {
                     self.buffer.push(t);
                     State(Self::assignment_parse)
                 }
@@ -255,15 +294,8 @@ where
                         panic!("found more than one range during for loop parsing");
                     }
                 }
-                Token::Bracket(_)
-                | Token::Operator(_)
-                | Token::Identifier(_)
-                | Token::Number(_)
-                | Token::StringLiteral(_) => {
-                    self.buffer.push(t);
-                }
                 _ => {
-                    panic!("error parsing a for loop: {:#?} is not a valid token in an expression")
+                    self.buffer.push(t);
                 }
             },
         }
@@ -275,7 +307,7 @@ where
             Token::KeyWord(KeyWord::For) => {
                 let (identifier, from, to, statements) = self.for_buffer
                     .pop()
-                    .expect("encountered an end for but no for loops we're initialized.");
+                    .expect("encountered an end for but no for loops were initialized.");
 
                 let for_statement = Statement::For(identifier, from, to, statements);
 
@@ -283,7 +315,7 @@ where
             }
             _ => panic!("Expected end after for, found {:#?} instead", t),
         };
-        State(Self::normal_parse)
+        State(Self::expect_semicolon)
     }
 
     // "read" <var_ident>
@@ -297,9 +329,22 @@ where
 
     // "print" <expr>
     fn print_parse(&mut self, t: Token) -> State<'a, O> {
+        match t {
+            Token::Semicolon => {
+                if 0 < self.buffer.len() {
+                    let expression = Self::parse_expression(&self.buffer);
+                    self.handle_statement(Statement::Print(expression));
+                    return State(Self::normal_parse);
+                } else {
+                    panic!("expected an expression after print.")
+                }
+            }
+            _ => self.buffer.push(t),
+        }
         State(Self::print_parse)
     }
 
+    // "assert" "(" <expr> ")"
     fn assert_parse(&mut self, t: Token) -> State<'a, O> {
         State(Self::assert_parse)
     }
@@ -312,10 +357,17 @@ where
         if self.for_buffer.is_empty() {
             self.statements.put(statement);
         } else {
-            let len = self.for_buffer.len()-1;
+            let len = self.for_buffer.len() - 1;
             self.for_buffer[len].3.push(statement);
         }
         self.buffer.clear();
+    }
+
+    fn expect_semicolon(&mut self, t: Token) -> State<'a, O> {
+        match t {
+            Token::Semicolon => State(Self::normal_parse),
+            _ => panic!("expected a semicolon, found {:#?} instead", t),
+        }
     }
 }
 
