@@ -20,7 +20,7 @@ use num_bigint::BigInt;
 
 use util::{Direction, Sink, Source};
 
-use scanner::{KeyWord, Token};
+use scanner::{KeyWord, Operator, Token};
 
 //All of these enums make up our AST.
 
@@ -382,20 +382,34 @@ where
     fn parse_expression(tokens: &[Token]) -> Expression {
         match tokens.len() {
             0 => panic!("tried to parse an expression but there was nothing to parse."),
+            // There's only one token to handle so it must be a singleton expression.
             1 => {
                 Expression::Singleton(match tokens[0].clone() {
                     Token::Number(n) => Operand::Int(n),
                     Token::StringLiteral(s) => Operand::StringLiteral(s),
                     Token::Identifier(i) => Operand::Identifier(i),
                     _ => panic!(),
-                });
-            },
-            2 => {
-
+                })
             }
-            _ => {},
-        }
-        Expression::Singleton(Operand::Int(1.into()))
+
+            // a Two token expression must be an unary operator and an operand.
+            2 => {
+                let operator = match tokens[0].clone() {
+                    Token::Operator(Operator::Not) => UnaryOperator::Not,
+                    t => panic!("expected an unary operator, found {:#?} instead", t),
+                };
+                let operand = match tokens[1].clone() {
+                    // anything other than an identifier here is a semantical error in mini-pl
+                    // but I don't want to catch semantic errors during syntactical analysis.
+                    Token::Identifier(i) => Operand::Identifier(i),
+                    Token::Number(n) => Operand::Int(n),
+                    Token::StringLiteral(s) => Operand::StringLiteral(s),
+                    _ => panic!("expected an operand but found a {:#?} instead"),
+                };
+                Expression::Unary(operator, operand)
+            },
+            _ => unimplemented!(),
+        } 
     }
 
     fn handle_statement(&mut self, statement: Statement) {
