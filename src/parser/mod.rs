@@ -372,8 +372,9 @@ where
         State(Self::assert_parse)
     }
 
-    //  <expr> ::= <opnd> <op> <opnd>
-    //  | [ <unary_op> ] <opnd>
+    // <expr> ::= <opnd> <op> <opnd>
+    //         |  <unary_op> <opnd>
+    //         |  <opnd>
     //  <opnd> ::= <int>
     //  | <string>
     //  | <var_ident>
@@ -382,13 +383,16 @@ where
         match tokens.len() {
             0 => panic!("tried to parse an expression but there was nothing to parse."),
             1 => {
-                Expression::Singleton(match tokens[0] {
+                Expression::Singleton(match tokens[0].clone() {
                     Token::Number(n) => Operand::Int(n),
                     Token::StringLiteral(s) => Operand::StringLiteral(s),
                     Token::Identifier(i) => Operand::Identifier(i),
-                    _ => panic!();
+                    _ => panic!(),
                 });
             },
+            2 => {
+
+            }
             _ => {},
         }
         Expression::Singleton(Operand::Int(1.into()))
