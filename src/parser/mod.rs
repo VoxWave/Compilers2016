@@ -425,15 +425,34 @@ fn parse_expression(tokens: &[Token]) -> Expression {
             match tokens[0] {
                 Token::Bracket(Direction::Left) => {
                     let closing_index = find_closing_bracket_index(tokens);
-                    let operand = Operand::Expr(Box::new(parse_expression(&tokens[1..closing_index])));
-                    panic!();
+                    let operand1 = Operand::Expr(Box::new(parse_expression(&tokens[1..closing_index])));
+                    // the operand is the whole expression therefore we return an singleton expression.
+                    match tokens.len() - (closing_index + 1) {
+                        0 => Expression::Singleton(operand1),
+                        1 => panic!("expected an operator and operand after a expression in parenthesis. found only {:#?}", tokens[closing_index+1]),
+                        2 => {
+                            let operator = match_binary_operator(tokens[closing_index + 1].clone());
+                            let operand2 = match_operand(tokens[closing_index + 2].clone());
+                            Expression::Binary(operand1, operator, operand2)
+                        },
+                        _ => {
+                            let operator = match_binary_operator(tokens[closing_index + 1].clone());
+                            let opening_index = closing_index + 2;
+                            let closing_index_2 = opening_index + find_closing_bracket_index(&tokens[opening_index..]);
+                            let operand2 = Operand::Expr(Box::new(parse_expression(&tokens[opening_index..(closing_index_2+1)])));
+                            Expression::Binary(operand1, operator, operand2)
+                        }
+                    }
                 },
-                _ => panic!(),
+                Token::Operator(Operator::Not) => {},
+                Token::Identifier(_) | Token::Number(_) | Token::StringLiteral(_) => {},
+                _ => panic!("expression started with and invalid token {:#?}"),
             }
         },
-    } 
-}
+    }
+} 
 
+/// a matches for the single token operands and then 
 fn match_operand(token: Token) -> Operand {
     match token {
         Token::Identifier(i) => Operand::Identifier(i),
@@ -482,10 +501,11 @@ fn find_closing_bracket_index(tokens: &[Token]) -> usize {
                         return i;
                     }
                 }
+                _ => {},
             }
         }
     }
-    0
+    panic!("could not find a closing bracket for expression.");
 }
 
 struct State<'a, O>(fn(&mut Parser<'a, O>, Token) -> State<'a, O>)
