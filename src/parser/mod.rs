@@ -204,7 +204,7 @@ where
                     let expr = match n {
                         3 => None,
                         4 => panic!("Var statement ended prematurely."),
-                        n if n > 4 => Some(Self::parse_expression(&self.buffer[4..])),
+                        n if n > 4 => Some(parse_expression(&self.buffer[4..])),
                         _ => unreachable!(),
                     };
                     self.handle_statement(Statement::Declaration(identifier, typ, expr));
@@ -235,7 +235,7 @@ where
                         &Token::Identifier(ref identifier) => {
                             Statement::Assignment(
                                     identifier.clone(),
-                                    Self::parse_expression(&self.buffer[2..])
+                                    parse_expression(&self.buffer[2..])
                             )
                         },
                         _ => unreachable!(
@@ -276,8 +276,8 @@ where
                     };
                     self.for_buffer.push((
                         identifier,
-                        Self::parse_expression(&self.buffer[2..self.for_range_pointer]),
-                        Self::parse_expression(
+                        parse_expression(&self.buffer[2..self.for_range_pointer]),
+                        parse_expression(
                             &self.buffer[(self.for_range_pointer + 1)..self.buffer.len()],
                         ),
                         Vec::new(),
@@ -332,7 +332,7 @@ where
         match t {
             Token::Semicolon => {
                 if 0 < self.buffer.len() {
-                    let expression = Self::parse_expression(&self.buffer);
+                    let expression = parse_expression(&self.buffer);
                     self.handle_statement(Statement::Print(expression));
                     return State(Self::normal_parse);
                 } else {
@@ -356,7 +356,7 @@ where
                     match self.buffer.pop().unwrap() {
                         Token::Bracket(Direction::Right) => {
                             if self.buffer.len() > 1 {
-                                let expression = Self::parse_expression(&self.buffer[1..]);
+                                let expression = parse_expression(&self.buffer[1..]);
                                 self.handle_statement(Statement::Assert(expression));
                                 return State(Self::normal_parse);
                             } else {
@@ -379,38 +379,6 @@ where
     //  | <string>
     //  | <var_ident>
     //  | "(" expr ")"
-    fn parse_expression(tokens: &[Token]) -> Expression {
-        match tokens.len() {
-            0 => panic!("tried to parse an expression but there was nothing to parse."),
-            // There's only one token to handle so it must be a singleton expression.
-            1 => {
-                Expression::Singleton(match tokens[0].clone() {
-                    Token::Number(n) => Operand::Int(n),
-                    Token::StringLiteral(s) => Operand::StringLiteral(s),
-                    Token::Identifier(i) => Operand::Identifier(i),
-                    _ => panic!(),
-                })
-            }
-
-            // a Two token expression must be an unary operator and an operand.
-            2 => {
-                let operator = match tokens[0].clone() {
-                    Token::Operator(Operator::Not) => UnaryOperator::Not,
-                    t => panic!("expected an unary operator, found {:#?} instead", t),
-                };
-                let operand = match tokens[1].clone() {
-                    // anything other than an identifier here is a semantical error in mini-pl
-                    // but I don't want to catch semantic errors during syntactical analysis.
-                    Token::Identifier(i) => Operand::Identifier(i),
-                    Token::Number(n) => Operand::Int(n),
-                    Token::StringLiteral(s) => Operand::StringLiteral(s),
-                    _ => panic!("expected an operand but found a {:#?} instead"),
-                };
-                Expression::Unary(operator, operand)
-            },
-            _ => unimplemented!(),
-        } 
-    }
 
     fn handle_statement(&mut self, statement: Statement) {
         if self.for_buffer.is_empty() {
@@ -428,6 +396,96 @@ where
             _ => panic!("expected a semicolon, found {:#?} instead", t),
         }
     }
+}
+
+fn parse_expression(tokens: &[Token]) -> Expression {
+    match tokens.len() {
+        0 => panic!("tried to parse an expression but there was nothing to parse."),
+        // There's only one token to handle so it must be a singleton expression.
+        1 => {
+            let operand = match_operand(tokens[0].clone());
+            Expression::Singleton(operand)
+        }
+
+        // a Two token expression must be an unary operator and an operand that isn't an expression.
+        2 => {
+            let operator = match_unary_operator(tokens[0].clone());
+            let operand = match_operand(tokens[1].clone());
+            Expression::Unary(operator, operand)
+        },
+        // a Three token expression must be a binary expression with both of the Operands
+        // being non-expression.
+        3 => {
+            let operand1 = match_operand(tokens[0].clone());
+            let operator = match_binary_operator(tokens[1].clone());
+            let operand2 = match_operand(tokens[2].clone());
+            Expression::Binary(operand1, operator, operand2)
+        }
+        _ => {
+            match tokens[0] {
+                Token::Bracket(Direction::Left) => {
+                    let closing_index = find_closing_bracket_index(tokens);
+                    let operand = Operand::Expr(Box::new(parse_expression(&tokens[1..closing_index])));
+                    panic!();
+                },
+                _ => panic!(),
+            }
+        },
+    } 
+}
+
+fn match_operand(token: Token) -> Operand {
+    match token {
+        Token::Identifier(i) => Operand::Identifier(i),
+        Token::Number(n) => Operand::Int(n),
+        Token::StringLiteral(s) => Operand::StringLiteral(s),
+        _ => panic!("expected an operand but found a {:#?} instead"),
+    }
+}
+
+fn match_unary_operator(token: Token) -> UnaryOperator {
+    match token {
+        Token::Operator(Operator::Not) => UnaryOperator::Not,
+        t => panic!("expected an unary operator, found {:#?} instead", t),
+    }
+}
+
+fn match_binary_operator(token: Token) -> BinaryOperator {
+    match token {
+        Token::Operator(o) => match o {
+            Operator::And => BinaryOperator::And,
+            Operator::Divide => BinaryOperator::Divide,
+            Operator::Equals => BinaryOperator::Equals,
+            Operator::LessThan => BinaryOperator::LessThan,
+            Operator::Minus => BinaryOperator::Minus,
+            Operator::Multiply => BinaryOperator::Multiply,
+            Operator::Plus => BinaryOperator::Plus,
+            _ => panic!("expected a binary operator but found a {:#?} instead", o),
+        }
+        _ => panic!("expected an operator but found {:#?} instead"),
+    }
+}
+
+fn find_closing_bracket_index(tokens: &[Token]) -> usize {
+    let mut opened_brackets = 0;
+    for (i, t) in tokens.iter().enumerate() {
+        match i {
+            0 => match t {
+                &Token::Bracket(Direction::Left) => opened_brackets += 1,
+                _ => panic!("the first token was a {:#?} instead of an opening bracket"),
+            },
+            _ => match t {
+                &Token::Bracket(Direction::Left) => opened_brackets +=1,
+                &Token::Bracket(Direction::Right) => {
+                    opened_brackets -= 1;
+                    if opened_brackets == 0 {
+                        return i;
+                    }
+                }
+            }
+        }
+    }
+    0
 }
 
 struct State<'a, O>(fn(&mut Parser<'a, O>, Token) -> State<'a, O>)
