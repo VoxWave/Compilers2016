@@ -444,7 +444,9 @@ fn parse_expression(tokens: &[Token]) -> Expression {
                         }
                     }
                 },
-                Token::Operator(Operator::Not) => {},
+                Token::Operator(Operator::Not) => {
+                    let closing_index = 1+find_closing_bracket_index(&tokens[1..]);
+                },
                 Token::Identifier(_) | Token::Number(_) | Token::StringLiteral(_) => {},
                 _ => panic!("expression started with and invalid token {:#?}"),
             }
