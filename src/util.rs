@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::mpsc::Sender;
 use std::sync::mpsc::Receiver;
 
@@ -17,7 +18,17 @@ pub trait Source<T> {
 
 impl<T> Source<T> for Vec<T> {
     fn take(&mut self) -> Option<T> {
-        self.pop()
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.remove(0))
+        }
+    }
+}
+
+impl<T> Source<T> for VecDeque<T> {
+    fn take(&mut self) -> Option<T> {
+        self.pop_front()
     }
 }
 
@@ -35,6 +46,12 @@ pub trait Sink<T> {
 impl<T> Sink<T> for Vec<T> {
     fn put(&mut self, thing: T) {
         self.push(thing);
+    }
+}
+
+impl<T> Sink<T> for VecDeque<T> {
+    fn put(&mut self, thing: T) {
+        self.push_back(thing);
     }
 }
 

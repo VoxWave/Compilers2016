@@ -1,4 +1,15 @@
 extern crate num_bigint;
+extern crate num;
+extern crate char_stream;
+extern crate rayon;
+
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Sender;
+use std::sync::mpsc::Receiver;
+
+use std::process::abort;
+
+use rayon::ThreadPoolBuilder;
 
 pub mod file_handling;
 pub mod scanner;
@@ -6,12 +17,29 @@ pub mod parser;
 pub mod interpreter;
 pub mod util;
 
+use scanner::Scanner;
+use interpreter::Interpreter;
+
 //use scanner::Scanner;
 
 fn main() {
-    // let mut scanner = Scanner::new();
-    // let mut tokens = Vec::new();
-    // scanner.scan(&file_handling::get_source_text(), &mut tokens);
-    // let _parsed = parser::parse(&mut tokens, );
-    // let mut interprettable = source_processing::sem_analyze(parsed);
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(3)
+        .build()
+        .unwrap();
+    let (mut token_sink, mut token_source) = channel();
+    let (mut statement_sink, mut statement_source) = channel();
+    pool.spawn(move || {
+        let mut scanner = Scanner::new();
+        scanner.scan(&file_handling::get_source_text(), &mut token_sink);
+    });
+    pool.spawn(move || {
+        parser::parse(&mut token_source, &mut statement_sink);
+    });
+    pool.spawn(move || {
+        let mut interpreter = Interpreter::new();
+        interpreter.interpret(&mut statement_source);
+        abort()
+    });
+    loop{}
 }

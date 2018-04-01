@@ -89,7 +89,7 @@ pub enum UnaryOperator {
     Not,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum Type {
     Int,
     Str,
@@ -352,25 +352,28 @@ where
         match self.buffer.len() {
             0 => match t {
                 Token::Bracket(Direction::Left) => self.buffer.push(t),
-                _ => panic!("expected a left bracket after assert but found {:#?} instead", t),
-            }
+                _ => panic!(
+                    "expected a left bracket after assert but found {:#?} instead",
+                    t
+                ),
+            },
             _ => match t {
-                Token::Semicolon => {
-                    match self.buffer.pop().unwrap() {
-                        Token::Bracket(Direction::Right) => {
-                            if self.buffer.len() > 1 {
-                                let expression = parse_expression(&self.buffer[1..]);
-                                self.handle_statement(Statement::Assert(expression));
-                                return State(Self::normal_parse);
-                            } else {
-                                panic!("invalid expression.");
-                            }
-                        },
-                        _ => panic!("expected a right parenthesis to end the expression in an assert statement"),
+                Token::Semicolon => match self.buffer.pop().unwrap() {
+                    Token::Bracket(Direction::Right) => {
+                        if self.buffer.len() > 1 {
+                            let expression = parse_expression(&self.buffer[1..]);
+                            self.handle_statement(Statement::Assert(expression));
+                            return State(Self::normal_parse);
+                        } else {
+                            panic!("invalid expression.");
+                        }
                     }
+                    _ => panic!(
+                        "expected a right parenthesis to end the expression in an assert statement"
+                    ),
                 },
                 _ => self.buffer.push(t),
-            }
+            },
         }
         State(Self::assert_parse)
     }
@@ -415,7 +418,7 @@ fn parse_expression(tokens: &[Token]) -> Expression {
             let operator = match_unary_operator(tokens[0].clone());
             let operand = match_operand(tokens[1].clone());
             Expression::Unary(operator, operand)
-        },
+        }
         // a Three token expression must be a binary expression with both of the Operands
         // being non-expression.
         3 => {
@@ -428,7 +431,8 @@ fn parse_expression(tokens: &[Token]) -> Expression {
             match tokens[0] {
                 Token::Bracket(Direction::Left) => {
                     let closing_index = find_closing_bracket_index(tokens);
-                    let operand1 = Operand::Expr(Box::new(parse_expression(&tokens[1..closing_index])));
+                    let operand1 =
+                        Operand::Expr(Box::new(parse_expression(&tokens[1..closing_index])));
                     // the operand is the whole expression therefore we return an singleton expression.
                     match tokens.len() - (closing_index + 1) {
                         0 => Expression::Singleton(operand1),
@@ -446,35 +450,37 @@ fn parse_expression(tokens: &[Token]) -> Expression {
                             Expression::Binary(operand1, operator, operand2)
                         }
                     }
-                },
+                }
                 Token::Operator(Operator::Not) => {
-                    let closing_index = 1+find_closing_bracket_index(&tokens[1..]);
-                    if closing_index+1 == tokens.len() {
-                        let operand = Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len()-1])));
+                    let closing_index = 1 + find_closing_bracket_index(&tokens[1..]);
+                    if closing_index + 1 == tokens.len() {
+                        let operand =
+                            Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len() - 1])));
                         Expression::Unary(UnaryOperator::Not, operand)
                     } else {
                         panic!("invalid operand");
                     }
-                },
+                }
                 Token::Identifier(_) | Token::Number(_) | Token::StringLiteral(_) => {
                     let operand1 = match_operand(tokens[0].clone());
                     let operator = match_binary_operator(tokens[1].clone());
 
-                    let closing_index = 3+find_closing_bracket_index(&tokens[3..]);
-                    if closing_index+1 == tokens.len() {
-                        let operand2 = Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len()-1])));
+                    let closing_index = 3 + find_closing_bracket_index(&tokens[3..]);
+                    if closing_index + 1 == tokens.len() {
+                        let operand2 =
+                            Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len() - 1])));
                         Expression::Binary(operand1, operator, operand2)
                     } else {
                         panic!("invalid operand");
                     }
-                },
+                }
                 _ => panic!("expression started with and invalid token {:#?}"),
             }
-        },
+        }
     }
-} 
+}
 
-/// a matches for the single token operands and then 
+/// a matches for the single token operands and then
 fn match_operand(token: Token) -> Operand {
     match token {
         Token::Identifier(i) => Operand::Identifier(i),
@@ -502,7 +508,7 @@ fn match_binary_operator(token: Token) -> BinaryOperator {
             Operator::Multiply => BinaryOperator::Multiply,
             Operator::Plus => BinaryOperator::Plus,
             _ => panic!("expected a binary operator but found a {:#?} instead", o),
-        }
+        },
         _ => panic!("expected an operator but found {:#?} instead"),
     }
 }
@@ -516,15 +522,15 @@ fn find_closing_bracket_index(tokens: &[Token]) -> usize {
                 _ => panic!("the first token was a {:#?} instead of an opening bracket"),
             },
             _ => match t {
-                &Token::Bracket(Direction::Left) => opened_brackets +=1,
+                &Token::Bracket(Direction::Left) => opened_brackets += 1,
                 &Token::Bracket(Direction::Right) => {
                     opened_brackets -= 1;
                     if opened_brackets == 0 {
                         return i;
                     }
                 }
-                _ => {},
-            }
+                _ => {}
+            },
         }
     }
     panic!("could not find a closing bracket for expression.");
