@@ -22,6 +22,9 @@ use util::{Direction, Sink, Source};
 
 use scanner::{KeyWord, Operator, Token};
 
+#[cfg(test)]
+mod test;
+
 //All of these enums make up our AST.
 
 //  <stmt> ::=
@@ -446,8 +449,25 @@ fn parse_expression(tokens: &[Token]) -> Expression {
                 },
                 Token::Operator(Operator::Not) => {
                     let closing_index = 1+find_closing_bracket_index(&tokens[1..]);
+                    if closing_index+1 == tokens.len() {
+                        let operand = Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len()-1])));
+                        Expression::Unary(UnaryOperator::Not, operand)
+                    } else {
+                        panic!("invalid operand");
+                    }
                 },
-                Token::Identifier(_) | Token::Number(_) | Token::StringLiteral(_) => {},
+                Token::Identifier(_) | Token::Number(_) | Token::StringLiteral(_) => {
+                    let operand1 = match_operand(tokens[0].clone());
+                    let operator = match_binary_operator(tokens[1].clone());
+
+                    let closing_index = 3+find_closing_bracket_index(&tokens[3..]);
+                    if closing_index+1 == tokens.len() {
+                        let operand2 = Operand::Expr(Box::new(parse_expression(&tokens[2..tokens.len()-1])));
+                        Expression::Binary(operand1, operator, operand2)
+                    } else {
+                        panic!("invalid operand");
+                    }
+                },
                 _ => panic!("expression started with and invalid token {:#?}"),
             }
         },
