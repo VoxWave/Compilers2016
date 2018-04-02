@@ -1,6 +1,6 @@
-extern crate num_bigint;
-extern crate num;
 extern crate char_stream;
+extern crate num;
+extern crate num_bigint;
 extern crate rayon;
 
 use std::sync::mpsc::channel;
@@ -23,10 +23,7 @@ use interpreter::Interpreter;
 //use scanner::Scanner;
 
 fn main() {
-    let pool = ThreadPoolBuilder::new()
-        .num_threads(3)
-        .build()
-        .unwrap();
+    let pool = ThreadPoolBuilder::new().num_threads(3).build().unwrap();
     let (mut token_sink, mut token_source) = channel();
     let (mut statement_sink, mut statement_source) = channel();
     pool.spawn(move || {
@@ -41,5 +38,5 @@ fn main() {
         interpreter.interpret(&mut statement_source);
         abort()
     });
-    loop{}
+    loop {}
 }

@@ -1,5 +1,5 @@
 use num_bigint::BigInt;
-use parser::{Expression, BinaryOperator, UnaryOperator, Operand, Statement, Type};
+use parser::{BinaryOperator, Expression, Operand, Statement, Type, UnaryOperator};
 use util::Source;
 use std::collections::HashMap;
 use self::Variable::*;
@@ -59,76 +59,59 @@ impl Interpreter {
                 let lhs = self.eval_oprnd(lhs);
                 let rhs = self.eval_oprnd(rhs);
                 match *op {
-                    BinaryOperator::And => {
-                        match (lhs, rhs) {
-                            (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs && rhs),
-                            _ => panic!("non boolean operands during and."),
-                        }
+                    BinaryOperator::And => match (lhs, rhs) {
+                        (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs && rhs),
+                        _ => panic!("non boolean operands during and."),
                     },
-                    BinaryOperator::Divide => {
-                        match (lhs, rhs) {
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs / rhs),
-                            _ => panic!("non integer operands during division."),
-                        }
+                    BinaryOperator::Divide => match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs / rhs),
+                        _ => panic!("non integer operands during division."),
                     },
-                    BinaryOperator::Equals => {
-                        match (lhs, rhs) {
-                            (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs == rhs),
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Bool(lhs == rhs),
-                            (Value::String(lhs), Value::String(rhs)) => Value::Bool(lhs == rhs),
-                            _ => panic!("cannot test equality of different types")
-                        }
-                    }
-                    BinaryOperator::LessThan => {
-                        match (lhs, rhs) {
-                            (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs < rhs),
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Bool(lhs < rhs),
-                            (Value::String(lhs), Value::String(rhs)) => Value::Bool(lhs < rhs),
-                            _ => panic!("cannot test ordering of different types")
-                        }
+                    BinaryOperator::Equals => match (lhs, rhs) {
+                        (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs == rhs),
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Bool(lhs == rhs),
+                        (Value::String(lhs), Value::String(rhs)) => Value::Bool(lhs == rhs),
+                        _ => panic!("cannot test equality of different types"),
                     },
-                    BinaryOperator::Minus => {
-                        match (lhs, rhs) {
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs - rhs),
-                            _ => panic!("non integer operands during substraction."),
-                        }
+                    BinaryOperator::LessThan => match (lhs, rhs) {
+                        (Value::Bool(lhs), Value::Bool(rhs)) => Value::Bool(lhs < rhs),
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Bool(lhs < rhs),
+                        (Value::String(lhs), Value::String(rhs)) => Value::Bool(lhs < rhs),
+                        _ => panic!("cannot test ordering of different types"),
                     },
-                    BinaryOperator::Multiply => {
-                        match (lhs, rhs) {
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs * rhs),
-                            _ => panic!("non integer operands during multiplication."),
-                        }
+                    BinaryOperator::Minus => match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs - rhs),
+                        _ => panic!("non integer operands during substraction."),
                     },
-                    BinaryOperator::Plus => {
-                        match (lhs, rhs) {
-                            (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs + rhs),
-                            (Value::String(lhs), Value::String(rhs)) => Value::String(lhs + &rhs),
-                            _ => panic!("invalid operand during addition/concatenation"),
-                        }
+                    BinaryOperator::Multiply => match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs * rhs),
+                        _ => panic!("non integer operands during multiplication."),
+                    },
+                    BinaryOperator::Plus => match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => Value::Int(lhs + rhs),
+                        (Value::String(lhs), Value::String(rhs)) => Value::String(lhs + &rhs),
+                        _ => panic!("invalid operand during addition/concatenation"),
                     },
                 }
+            }
+            Expression::Unary(ref op, ref rhs) => match *op {
+                UnaryOperator::Not => match self.eval_oprnd(rhs) {
+                    Value::Bool(b) => Value::Bool(!b),
+                    _ => panic!("Cannot apply Not to non-boolean values"),
+                },
             },
-            Expression::Unary(ref op, ref rhs) => {
-                match *op {
-                    UnaryOperator::Not => match self.eval_oprnd(rhs) {
-                        Value::Bool(b) => Value::Bool(!b),
-                        _ => panic!("Cannot apply Not to non-boolean values"),
-                    }
-                }
-            },
-            Expression::Singleton(ref oprnd) => {
-                self.eval_oprnd(oprnd)
-            },
+            Expression::Singleton(ref oprnd) => self.eval_oprnd(oprnd),
         }
     }
 
     fn eval_oprnd(&mut self, oprnd: &Operand) -> Value {
         match *oprnd {
             Operand::Expr(ref expr) => self.eval_expr(expr),
-            Operand::Identifier(ref iden) => {
-                match *self.context.get(iden).expect(&format!("undefined variable {}", iden)) {
-                    Mutable(ref n) | Immutable(ref n) => n.clone(),
-                }
+            Operand::Identifier(ref iden) => match *self.context
+                .get(iden)
+                .expect(&format!("undefined variable {}", iden))
+            {
+                Mutable(ref n) | Immutable(ref n) => n.clone(),
             },
             Operand::Int(ref n) => Value::Int(n.clone()),
             Operand::StringLiteral(ref s) => Value::String(s.clone()),
@@ -171,12 +154,12 @@ impl Interpreter {
                         Some(expr) => {
                             let val = self.eval_expr(&expr);
                             match (&val, typ) {
-                                (&Value::Bool(_), Type::Bool) | (&Value::Int(_), Type::Int) | (&Value::String(_), Type::Str) => {
-                                    val
-                                },
+                                (&Value::Bool(_), Type::Bool)
+                                | (&Value::Int(_), Type::Int)
+                                | (&Value::String(_), Type::Str) => val,
                                 _ => panic!("expression did not evaluate to {:#?}", typ),
                             }
-                        },
+                        }
                         None => Value::default_from_type(typ),
                     };
                     if self.context.contains_key(&var) {
@@ -189,22 +172,22 @@ impl Interpreter {
                     match self.context.get_mut(&var) {
                         Some(variable) => {
                             match *variable {
-                                Mutable(ref val) => {
-                                    match *val {
-                                        Value::Int(_) => {},
-                                        _ => panic!("loop control variable was not an integer"),
-                                    }
-                                }
+                                Mutable(ref val) => match *val {
+                                    Value::Int(_) => {}
+                                    _ => panic!("loop control variable was not an integer"),
+                                },
                                 _ => panic!("loop variable cannot be reused"),
                             }
                             *variable = variable.freeze();
-                        },
+                        }
                         None => panic!("for loop variable uninitialized"),
                     }
                     if let Value::Int(from) = self.eval_expr(&from) {
                         if let Value::Int(to) = self.eval_expr(&to) {
                             for i in ::num::range_inclusive(from, to + &BigInt::from(1)) {
-                                if let Immutable(Value::Int(ref mut n)) = *self.context.get_mut(&var).unwrap() {
+                                if let Immutable(Value::Int(ref mut n)) =
+                                    *self.context.get_mut(&var).unwrap()
+                                {
                                     *n = i;
                                 } else {
                                     unreachable!();
@@ -219,33 +202,29 @@ impl Interpreter {
                     }
                     let mut control_variable = self.context.get_mut(&var).unwrap();
                     *control_variable = control_variable.thaw();
-                },
-                Statement::Print(expr) => {
-                    match self.eval_expr(&expr) {
-                        Value::Bool(b) => panic!("boolean printing is not supported"),
-                        Value::Int(i) => println!("{}", i),
-                        Value::String(s) => println!("{}", s),
-                    }
+                }
+                Statement::Print(expr) => match self.eval_expr(&expr) {
+                    Value::Bool(b) => panic!("boolean printing is not supported"),
+                    Value::Int(i) => println!("{}", i),
+                    Value::String(s) => println!("{}", s),
                 },
                 Statement::Read(var) => {
                     let input: String = CharStream::from_stdin()
                         .take_while(|c| !c.is_whitespace())
                         .collect();
                     match *self.context.get_mut(&var).expect("variable was undefined") {
-                        Mutable(ref mut val) => {
-                            match *val {
-                                Value::Int(ref mut i) => {
-                                    *i = input.parse().expect("invalid integer input");
-                                },
-                                Value::String(ref mut s) => {
-                                    *s = input;
-                                }
-                                Value::Bool(_) => panic!("Tried to read into boolean variable")
+                        Mutable(ref mut val) => match *val {
+                            Value::Int(ref mut i) => {
+                                *i = input.parse().expect("invalid integer input");
                             }
+                            Value::String(ref mut s) => {
+                                *s = input;
+                            }
+                            Value::Bool(_) => panic!("Tried to read into boolean variable"),
                         },
                         Immutable(_) => panic!("tried to read to a loop control variable"),
                     }
-                },
+                }
             }
         }
     }
